@@ -1,0 +1,13 @@
+services:
+  engine:
+    build:
+      context: .
+      target: runtime
+    environment:
+      TRADING_MODE: "${TRADING_MODE:-STOPPED}"
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
