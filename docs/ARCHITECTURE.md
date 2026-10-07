@@ -1,38 +1,65 @@
-# Arquitectura mínima — Fase 0
+# Arquitectura mínima — Fase 1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
 ```text
 MarketDataProvider
     ↓
+Candle
+    ↓
 StrategyEngine
     ↓
-Decision / Intent
-    ↓
-RiskManager
-    ↓
-ExecutionAdapter
+StrategyResult
+    ├─ signals → Signal
+    └─ order_intents → OrderIntent
+                          ↓
+                     RiskManager
+                          ↓
+                    ExecutionAdapter
 ```
 
-Este flujo es un contrato arquitectónico documental, aún sin implementación.
+Este flujo define límites mediante Protocols, sin implementaciones operativas.
 Los futuros adaptadores serán `ReplayExecutionAdapter`, `ShadowExecutionAdapter`
-y `BinanceLiveExecutionAdapter`. No se definen interfaces Python hasta contar con
-una especificación aprobada que determine sus datos y operaciones.
+y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
+
+- `market_data/contracts.py`: `MarketDataProvider.candles(symbol)` expone un
+  iterador de Candle; no conoce la estrategia ni fija intervalos/orígenes.
+- `strategy/contracts.py`: `StrategyEngine.on_candle(candle, position, round_state)`
+  recibe datos y snapshots opcionales y retorna StrategyResult inmutable con
+  `signals: tuple[Signal, ...]` y `order_intents: tuple[OrderIntent, ...]`.
+  Ambas tuplas pueden estar vacías de manera independiente. No implementa
+  condiciones de entrada. Posteriormente la coordinación podrá registrar/notificar
+  Signal y procesar OrderIntent mediante RiskManager; esa coordinación no existe aún.
+- `risk/contracts.py`: `RiskManager.evaluate(intent, balance, position)` retorna
+  RiskDecision con aprobación explícita o rechazo con motivo, sin reglas de riesgo.
+- `execution/contracts.py`: `ExecutionAdapter.submit(intent)` retorna un snapshot
+  Order; `poll()` retorna una tupla finita de los Order/Fill actualmente disponibles
+  sin bloquear. Aceptar una intención no presupone su llenado inmediato.
+
+La dirección es implementaciones externas → contratos → modelos. Los modelos
+solo dependen de biblioteca estándar y utilidades centrales; los contratos solo
+de biblioteca estándar y modelos. No existe coordinador de ese flujo en Fase 1.
+Consulta [modelos de dominio](DOMAIN_MODEL.md) para sus invariantes.
 
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
 Live ≠ estrategia independiente.
 Los tres compartirán **el mismo StrategyEngine** y la misma política de Add Margin.
 
+OrderIntent incluye `reduce_only`, un bool real independiente del exchange.
+False permite aumentar o crear exposición; True expresa que la ejecución nunca
+debe aumentar exposición ni crear una posición contraria. Es la misma semántica
+para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
+
 ## Responsabilidades y dependencias
 
-- `models`: tipos compartidos sin dependencias de proveedores.
+- `models`: valores, enums, IDs y snapshots inmutables sin dependencias de proveedores.
 - `config`: configuración inmutable, leída del entorno y validada explícitamente.
 - `market_data`: futura provisión de datos; no toma decisiones ni ejecuta órdenes.
 - `strategy` y `signals`: futuro núcleo de decisión y sus señales; sin llamadas
   a Binance, Telegram, persistencia o adaptadores específicos de un modo.
 - `risk`: futura validación de intenciones antes de ejecutar.
-- `execution`: futuros contratos de ejecución. Los adaptadores de modo cumplirán
+- `execution`: contrato mínimo de ejecución. Los futuros adaptadores de modo cumplirán
   esos contratos y no contendrán una estrategia duplicada.
 - `replay`, `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
 - `add_margin`: futura política compartida, pendiente de especificación.
@@ -53,12 +80,12 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-En Fase 0 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 1 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
 ni secretos. Los errores se propagan; no se sustituyen por resultados ficticios.
 
-Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes
-reservados contienen solo `__init__.py`; no hay lógica de trading, DCA, TP,
+Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes de
+implementaciones futuras siguen reservados; no hay lógica de trading, DCA, TP,
 filtros, vetos, replay funcional, Shadow, Live, Add Margin ni Telegram.

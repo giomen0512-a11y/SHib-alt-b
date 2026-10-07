@@ -1,7 +1,7 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 0**.
-Solo incluye infraestructura y reglas de desarrollo. **Live NO está implementado**:
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 1**.
+Incluye infraestructura, modelos de dominio y contratos mínimos. **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
 
 ## Requisitos e instalación
@@ -43,18 +43,20 @@ docker run --rm --network none shib-alt-b:test
 
 La imagen predeterminada instala únicamente producción; el target `test` añade
 pytest, mypy y Ruff. Ambos usan Python 3.12 y un usuario sin privilegios.
-Compose ejecuta la comprobación de Fase 0 sin red y termina; no hay servicios
+Compose ejecuta la comprobación de configuración sin red y termina; no hay servicios
 adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 
 ## Estructura
 
-- `src/trading_engine/config`, `models`, `utils`: configuración, estados y utilidades.
-- `market_data`, `strategy`, `signals`, `risk`, `execution`: límites del futuro motor.
+- `src/trading_engine/config`, `models`, `utils`: configuración, modelos, estados y utilidades.
+- `market_data`, `strategy`, `risk`, `execution`: Protocols mínimos del motor.
+- `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.
 - `replay`, `shadow`, `live`, `add_margin`, `persistence`, `binance`, `telegram`:
   paquetes reservados sin implementación.
-- `tests/unit`: pruebas de infraestructura; `tests/integration`: reservado.
+- `tests/unit`: pruebas de infraestructura y dominio; `tests/integration`: reservado.
 - `docs/`: arquitectura, seguridad y especificaciones futuras, fuente de verdad.
 
-Lee [AGENTS.md](AGENTS.md) antes de editar y [arquitectura](docs/ARCHITECTURE.md)
-para conocer los límites. La aplicación de producción no depende de Codex,
+Lee [AGENTS.md](AGENTS.md) antes de editar, [arquitectura](docs/ARCHITECTURE.md)
+y [modelos de dominio](docs/DOMAIN_MODEL.md) para conocer los contratos e invariantes.
+La aplicación de producción no depende de Codex,
 ChatGPT ni OpenAI.
