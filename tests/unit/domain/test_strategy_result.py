@@ -21,7 +21,7 @@ def test_strategy_result_defaults_to_empty() -> None:
 def test_strategy_result_supports_both_outputs(
     intent: OrderIntent, has_signal: bool, has_intent: bool
 ) -> None:
-    signal = Signal(SignalId(UUID(int=5)), intent.symbol, intent.timestamp, "observation")
+    signal = Signal(SignalId(UUID(int=5)), intent.symbol, intent.created_at, "observation")
     signals = (signal,) if has_signal else ()
     intents = (intent,) if has_intent else ()
     result = StrategyResult(signals=signals, order_intents=intents)

@@ -66,7 +66,7 @@ def test_protocols_accept_structural_fakes_and_partial_updates(
     candle: Candle, intent: OrderIntent, order: Order, balance: BalanceSnapshot
 ) -> None:
     market: MarketDataProvider = FakeMarket(candle)
-    signal = Signal(SignalId(UUID(int=5)), intent.symbol, intent.timestamp, "observation")
+    signal = Signal(SignalId(UUID(int=5)), intent.symbol, intent.created_at, "observation")
     response = StrategyResult(signals=(signal,), order_intents=(intent,))
     strategy: StrategyEngine = FakeStrategy(response)
     risk: RiskManager = FakeRisk(RiskDecision(True))

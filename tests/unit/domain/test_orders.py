@@ -51,7 +51,8 @@ def test_intent_is_quantity_based_and_immutable(intent: OrderIntent) -> None:
         ({"side": "BUY"}, TypeError),
         ({"order_type": "MARKET"}, TypeError),
         ({"symbol": "SHIBUSDC"}, TypeError),
-        ({"timestamp": datetime(2026, 1, 1)}, ValueError),
+        ({"created_at": datetime(2026, 1, 1)}, ValueError),
+        ({"not_before": datetime(2026, 1, 1)}, ValueError),
     ],
 )
 def test_intent_rejects_ambiguous_or_invalid_fields(
@@ -132,7 +133,7 @@ def test_order_rejects_invalid_fields(
 
 def test_order_requires_causal_timestamps(order: Order) -> None:
     with pytest.raises(ValueError):
-        replace(order, created_at=order.intent.timestamp - timedelta(seconds=1))
+        replace(order, created_at=order.intent.not_before - timedelta(seconds=1))
     with pytest.raises(ValueError):
         replace(order, updated_at=order.created_at - timedelta(seconds=1))
     assert replace(order, updated_at=order.created_at + timedelta(seconds=1))

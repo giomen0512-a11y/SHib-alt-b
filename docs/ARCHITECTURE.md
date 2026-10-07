@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 1
+# Arquitectura mínima — Fase 2
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -10,15 +10,23 @@ Candle
 StrategyEngine
     ↓
 StrategyResult
+    ↓
+StrategyCoordinator
     ├─ signals → Signal
-    └─ order_intents → OrderIntent
+    └─ pending OrderIntent
+                          ↓
+                  not_before alcanzado
+                          ↓
+                     due OrderIntent
                           ↓
                      RiskManager
                           ↓
                     ExecutionAdapter
 ```
 
-Este flujo define límites mediante Protocols, sin implementaciones operativas.
+Este flujo define límites mediante Protocols y coordinación temporal pura.
+RiskManager → ExecutionAdapter es un paso operativo futuro que el coordinador
+no invoca en Fase 2.
 Los futuros adaptadores serán `ReplayExecutionAdapter`, `ShadowExecutionAdapter`
 y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
 
@@ -29,7 +37,8 @@ y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
   `signals: tuple[Signal, ...]` y `order_intents: tuple[OrderIntent, ...]`.
   Ambas tuplas pueden estar vacías de manera independiente. No implementa
   condiciones de entrada. Posteriormente la coordinación podrá registrar/notificar
-  Signal y procesar OrderIntent mediante RiskManager; esa coordinación no existe aún.
+  Signal y procesar las intenciones elegibles mediante RiskManager; esos efectos
+  operativos no se implementan aún.
 - `risk/contracts.py`: `RiskManager.evaluate(intent, balance, position)` retorna
   RiskDecision con aprobación explícita o rechazo con motivo, sin reglas de riesgo.
 - `execution/contracts.py`: `ExecutionAdapter.submit(intent)` retorna un snapshot
@@ -38,7 +47,10 @@ y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
 
 La dirección es implementaciones externas → contratos → modelos. Los modelos
 solo dependen de biblioteca estándar y utilidades centrales; los contratos solo
-de biblioteca estándar y modelos. No existe coordinador de ese flujo en Fase 1.
+de biblioteca estándar y modelos. `orchestration` depende de modelos y del contrato
+StrategyEngine: incorpora pending, expone señales y determina due con tiempo
+inyectado. No usa reloj interno ni fija delays. Consulta
+[coordinación temporal](ORCHESTRATION.md) para el estado y sus resultados.
 Consulta [modelos de dominio](DOMAIN_MODEL.md) para sus invariantes.
 
 Replay ≠ estrategia independiente.
@@ -61,6 +73,8 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 - `risk`: futura validación de intenciones antes de ejecutar.
 - `execution`: contrato mínimo de ejecución. Los futuros adaptadores de modo cumplirán
   esos contratos y no contendrán una estrategia duplicada.
+- `orchestration`: coordinación y scheduling deterministas compartidos; sin
+  ejecución, llamadas a riesgo ni efectos externos.
 - `replay`, `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
 - `add_margin`: futura política compartida, pendiente de especificación.
 - `persistence`: almacenamiento separado de las reglas de decisión.
@@ -80,7 +94,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 1 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 2 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno

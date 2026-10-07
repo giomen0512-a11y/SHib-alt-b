@@ -24,7 +24,8 @@ class OrderIntent:
     side: Side
     order_type: OrderType
     quantity: Quantity
-    timestamp: datetime
+    created_at: datetime
+    not_before: datetime
     limit_price: Price | None = None
     reduce_only: bool = False
 
@@ -36,7 +37,10 @@ class OrderIntent:
         require_type(self.order_type, OrderType, "order_type")
         require_type(self.quantity, Quantity, "quantity")
         require_type(self.reduce_only, bool, "reduce_only")
-        utc_timestamp(self.timestamp, "timestamp")
+        utc_timestamp(self.created_at, "created_at")
+        utc_timestamp(self.not_before, "not_before")
+        if self.not_before < self.created_at:
+            raise ValueError("not_before no puede ser anterior a created_at")
         if self.order_type is OrderType.LIMIT:
             require_type(self.limit_price, Price, "limit_price de una LIMIT")
         elif self.limit_price is not None:
@@ -74,7 +78,7 @@ class Order:
             raise ValueError("Una orden completa debe ser FILLED, no CANCELED")
         utc_timestamp(self.created_at, "created_at")
         utc_timestamp(self.updated_at, "updated_at")
-        if self.created_at < self.intent.timestamp or self.updated_at < self.created_at:
+        if self.created_at < self.intent.not_before or self.updated_at < self.created_at:
             raise ValueError("Timestamps de orden incoherentes con la intención")
         if self.adapter_order_id is not None:
             nonblank(self.adapter_order_id, "adapter_order_id")

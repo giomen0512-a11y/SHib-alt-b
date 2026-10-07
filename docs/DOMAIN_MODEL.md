@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 1
+# Modelos de dominio — Fase 2
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -44,7 +44,11 @@ Los constructores requieren enums reales; no aceptan strings como estados.
   generación de señales, coordinación ni temporización; todos los modos compartirán
   el mismo StrategyEngine.
 - **OrderIntent**: petición del motor con IntentId, RoundId, símbolo, Side,
-  OrderType, Quantity y timestamp. Contrato basado únicamente en cantidad:
+  OrderType, Quantity, created_at y not_before. Ambos tiempos son proporcionados
+  explícitamente por el llamador: created_at es la creación causal y not_before
+  la primera elegibilidad. Requiere not_before >= created_at; igualdad permite
+  ejecución inmediata. No existe timestamp ni generación automática de tiempos.
+  Contrato basado únicamente en cantidad:
   no existe notional. LIMIT exige limit_price Price; MARKET lo prohíbe.
   `reduce_only` es un bool real e inmutable, False por defecto; rechaza int/string
   y otros sustitutos. False permite aumentar o crear exposición. True expresa que
@@ -69,11 +73,16 @@ Los constructores requieren enums reales; no aceptan strings como estados.
   requiere motivo. No contiene reglas ni evaluación financiera.
 
 Todos los timestamps deben ser datetime UTC timezone-aware. Las fuentes externas
-normalizarán a UTC antes de construir. Order requiere intent.timestamp <=
+normalizarán a UTC antes de construir. Order requiere intent.not_before <=
 created_at <= updated_at. filled_quantity nunca supera la solicitada.
 PENDING/OPEN/REJECTED requieren cero; PARTIALLY_FILLED exige 0 < filled < requested;
 FILLED exige igualdad; CANCELED permite cero o parcial, nunca cantidad completa.
 Son invariantes de snapshots, no una máquina de transiciones ni un reconciliador.
+
+Los modelos temporales `CoordinatorState`, `CoordinationResult` y `DueIntentsResult`
+residen en `orchestration/models.py`. Solo contienen pending, señales/due y estado,
+sin contexto financiero. Su orden canónico y uso de tiempo explícito se describen
+en [ORCHESTRATION.md](ORCHESTRATION.md).
 
 Round requiere created_at <= opened_at/closed_at cuando existen y opened_at <=
 closed_at cuando ambos existen. PENDING_ENTRY no admite apertura/cierre;

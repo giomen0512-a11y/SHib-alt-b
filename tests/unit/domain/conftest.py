@@ -41,7 +41,8 @@ def intent(timestamp: datetime) -> OrderIntent:
         Side.BUY,
         OrderType.MARKET,
         Quantity(Decimal("10")),
-        timestamp,
+        created_at=timestamp,
+        not_before=timestamp,
     )
 
 
@@ -52,8 +53,8 @@ def order(intent: OrderIntent) -> Order:
         intent,
         OrderStatus.OPEN,
         Decimal("0"),
-        intent.timestamp,
-        intent.timestamp,
+        intent.not_before,
+        intent.not_before,
     )
 
 
