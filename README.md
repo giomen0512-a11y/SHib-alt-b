@@ -1,6 +1,6 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 2**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3A — especificación de estrategia**.
 Incluye infraestructura, modelos, contratos y coordinación temporal determinista.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
