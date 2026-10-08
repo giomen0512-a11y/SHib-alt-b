@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 2.2
+# Arquitectura mínima — Fase 3B-1A
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -67,6 +67,22 @@ StrategyCoordinator y los modelos no generan IDs. OrderId/FillId corresponden a
 la futura capa de ejecución/adaptador. Consulta [IDENTITY.md](IDENTITY.md) para
 encoding, revision e idempotencia; no hay generación aleatoria ni persistencia.
 
+Fase 3B-1A implementa únicamente la capa matemática pura en `strategy/alt_b`.
+`AltBConfig` es un snapshot frozen de los parámetros canónicos; solo Symbol y
+order_budget son configurables y el resto se valida contra los valores de
+[Alternativa B](STRATEGY_ALT_B.md). `math.py` calcula pesos, márgenes, nocionales,
+desviaciones y precios teóricos DCA anclados a P0, promedio ponderado de fills
+y TP teórico. El llamador debe seleccionar los fills de entrada correctos.
+No se genera Quantity, IDs, señales, acciones ni intenciones y no hay motor concreto.
+
+Cada cálculo usa un Context Decimal nuevo dentro de `localcontext`, con
+`MATH_PRECISION = 50`, `ROUND_HALF_EVEN`, límites de exponente `MIN_EMIN`/`MAX_EMAX`
+y traps explícitos para InvalidOperation, DivisionByZero y Overflow. No hereda ni
+modifica el contexto global, ni cuantiza a centavos, ticks o steps. Los cocientes
+no terminantes se calculan a esa precisión; ningún nivel absorbe un residuo del
+presupuesto. Solo depende de biblioteca estándar, AltBConfig y modelos necesarios;
+no hace I/O ni accede a reloj, adaptadores, coordinación o servicios externos.
+
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
 Live ≠ estrategia independiente.
@@ -82,8 +98,9 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 - `models`: valores, enums, IDs y snapshots inmutables sin dependencias de proveedores.
 - `config`: configuración inmutable, leída del entorno y validada explícitamente.
 - `market_data`: futura provisión de datos; no toma decisiones ni ejecuta órdenes.
-- `strategy` y `signals`: futuro núcleo de decisión y sus señales; sin llamadas
-  a Binance, Telegram, persistencia o adaptadores específicos de un modo.
+- `strategy`: contratos y matemáticas puras de Alternativa B; el núcleo de decisión
+  concreto sigue pendiente. `signals` sigue reservado. Sin llamadas a Binance,
+  Telegram, persistencia o adaptadores específicos de un modo.
 - `risk`: futura validación de intenciones antes de ejecutar.
 - `execution`: contrato mínimo de ejecución. Los futuros adaptadores de modo cumplirán
   esos contratos y no contendrán una estrategia duplicada.
@@ -100,7 +117,8 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 Python 3.12. Precios, cantidades, dinero, PnL, margen y fees utilizarán `Decimal`;
 no `float` en cálculos financieros críticos. `to_decimal` admite texto, enteros
 y Decimal finitos; rechaza float/bool y no inventa precisión, redondeo o tamaños
-de lote. Las políticas de cálculo se especificarán y probarán en su fase.
+de lote. La matemática de Alternativa B usa la precisión local indicada arriba;
+las políticas de cantidades ejecutables siguen pendientes.
 
 Timestamps internos UTC timezone-aware. `require_utc` rechaza fechas naive y
 offsets no UTC; la normalización de fuentes externas corresponderá a sus adaptadores.
@@ -108,12 +126,13 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 2.2 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 3B-1A solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
 ni secretos. Los errores se propagan; no se sustituyen por resultados ficticios.
 
 Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes de
-implementaciones futuras siguen reservados; no hay lógica de trading, DCA, TP,
-filtros, vetos, replay funcional, Shadow, Live, Add Margin ni Telegram.
+implementaciones futuras siguen reservados; solo está implementada la matemática
+pura de sizing, DCA, promedio y TP. No hay decisiones de trading, filtros, vetos,
+órdenes DCA/TP, replay funcional, Shadow, Live, Add Margin ni Telegram.

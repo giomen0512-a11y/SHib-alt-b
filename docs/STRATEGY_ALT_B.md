@@ -6,6 +6,12 @@ implementación que lo contradiga constituye una regresión, salvo cambio aproba
 de esta especificación. Esta fase no implementa estrategia, ejecución ni las
 correcciones arquitectónicas indicadas al final.
 
+Implementación actual: **Fase 3B-1A**. La configuración canónica y la capa matemática
+pura de sizing (pesos, márgenes y nocionales), desviaciones/precios teóricos DCA,
+promedio ponderado de fills y TP teórico están implementadas y testeadas en
+`strategy/alt_b`. Las fórmulas y parámetros de esta especificación se conservan.
+El motor concreto, filtros, vetos, señales y ejecución de órdenes siguen pendientes.
+
 ## 1. Identidad y alcance
 
 | Concepto | Valor canónico |

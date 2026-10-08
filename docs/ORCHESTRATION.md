@@ -1,4 +1,4 @@
-# Coordinación por eventos y acciones programadas — Fase 2.1
+# Coordinación por eventos y acciones programadas — Fase 2.2
 
 ```text
 Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
