@@ -13,6 +13,9 @@ credentials/
 *.sqlite*
 *.db
 *.db-*
+*.zip
+*.CHECKSUM
+*.part
 __pycache__/
 *.py[cod]
 .pytest_cache/

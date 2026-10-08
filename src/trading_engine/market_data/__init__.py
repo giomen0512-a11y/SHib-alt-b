@@ -1,1 +1,1 @@
-"""Reservado para una fase posterior; sin implementación en Fase 0."""
+"""Contrato de provisión y CLI manual del histórico público, sin trading."""

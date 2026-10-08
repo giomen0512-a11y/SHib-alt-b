@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-2A
+# Arquitectura mínima — Fase Datos 1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -159,7 +159,8 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 
 - `models`: valores, enums, IDs y snapshots inmutables sin dependencias de proveedores.
 - `config`: configuración inmutable, leída del entorno y validada explícitamente.
-- `market_data`: futura provisión de datos; no toma decisiones ni ejecuta órdenes.
+- `market_data`: contrato de provisión y coordinación manual del histórico público;
+  no toma decisiones ni ejecuta órdenes.
 - `strategy`: contratos, matemáticas y evaluación pura de entrada de Alternativa B; el núcleo de decisión
   concreto sigue pendiente. `signals` sigue reservado. Sin llamadas a Binance,
   Telegram, persistencia o adaptadores específicos de un modo.
@@ -170,9 +171,19 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
   ejecución, llamadas a riesgo ni efectos externos.
 - `replay`, `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
 - `add_margin`: futura política compartida, pendiente de especificación.
-- `persistence`: almacenamiento separado de las reglas de decisión.
-- `binance`, `telegram`: futuras interfaces externas, sin SDK ni acceso en Fase 0.
+- `persistence`: histórico SQLite exacto, separado de las reglas de decisión.
+- `binance`: HTTPS público USDⓈ-M Futures y normalización de datos, sin SDK,
+  API keys, endpoints privados ni órdenes. `telegram` sigue reservado.
 - `utils`: herramientas generales sin reglas financieras.
+
+Fase Datos 1 añade un flujo externo y manual separado del núcleo:
+archivos oficiales monthly/daily + REST público → normalización 1m UTC →
+SQLite histórico completo → lectura cronológica Candle. Auditoría y recovery
+detectan gaps/conflictos sin interpolar ni sobrescribir datos. La CLI termina
+tras cada invocación; no llama StrategyEngine ni modifica el runtime STOPPED.
+La integración offline valida esas Candle con ingest_closed_1m y el evaluador
+aprobado; AltBMarketState conserva su ventana de 1560 minutos. No se persiste
+estado financiero, rondas, acciones u órdenes. Consulta [DATA_PIPELINE.md](DATA_PIPELINE.md).
 
 ## Invariantes
 

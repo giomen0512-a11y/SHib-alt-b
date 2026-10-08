@@ -1,1 +1,1 @@
-"""Reservado para una fase posterior; sin implementación en Fase 0."""
+"""Persistencia del histórico de mercado, separada del estado financiero."""

@@ -1,6 +1,6 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-2A — ingesta incremental y estado reproducible de Alternativa B**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase Datos 1 — histórico público Futures y SQLite**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
 Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
@@ -11,9 +11,13 @@ vetos A/B y RV poblacional con taker-buy real. Devuelve `EntryEvaluation`;
 datos insuficientes bloquean la entrada y las velas futuras se rechazan.
 `ingest_closed_1m` recibe y devuelve estado explícito frozen, conserva hasta 1560
 minutos y evalúa solo cierres 15m. Un duplicado idéntico no reevalúa; un gap reinicia
-el historial y el warmup. Sin persistencia ni integración con StrategyEngine todavía.
+el historial y el warmup. Sin persistencia del estado de estrategia ni integración con StrategyEngine todavía.
+La CLI manual de datos permite archivos oficiales mensuales/diarios y REST público
+USDⓈ-M 1m, SQLite exacto, sincronización puntual y auditoría/recuperación de gaps.
+Consulta [pipeline de datos](docs/DATA_PIPELINE.md); no descarga al iniciar el bot.
 **Live NO está implementado**:
-el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
+el único modo admitido es `STOPPED`. El bot no conecta con Binance ni requiere secretos;
+solo los comandos manuales de datos pueden consultar fuentes públicas.
 
 ## Requisitos e instalación
 
@@ -60,7 +64,7 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 ## Estructura
 
 - `src/trading_engine/config`, `models`, `utils`: configuración, modelos, estados y utilidades.
-- `market_data`, `strategy`, `risk`, `execution`: Protocols mínimos del motor.
+- `strategy`, `risk`, `execution`: Protocols mínimos del motor.
 - `strategy/alt_b`: configuración canónica y matemáticas Decimal de Alternativa B,
   agregación 15m y evaluación causal de entrada con 1560 minutos de warmup,
   ingesta incremental y estado explícito inmutable, precisión local fija de 50
@@ -68,9 +72,11 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 - `orchestration`: estado inmutable, coordinación por eventos y acciones elegibles por tiempo explícito;
   no ejecuta órdenes ni utiliza reloj interno.
 - `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.
-- `replay`, `shadow`, `live`, `add_margin`, `persistence`, `binance`, `telegram`:
+- `market_data`: además del contrato, CLI y coordinación manual del histórico público.
+- `binance`: transporte público y normalización Futures; `persistence`: histórico SQLite.
+- `replay`, `shadow`, `live`, `add_margin`, `telegram`:
   paquetes reservados sin implementación.
-- `tests/unit`: pruebas de infraestructura y dominio; `tests/integration`: reservado.
+- `tests/unit`: pruebas de infraestructura, dominio y datos, incluida integración SQLite de 27h.
 - `docs/`: arquitectura, seguridad y especificaciones futuras, fuente de verdad.
 
 Lee [AGENTS.md](AGENTS.md) antes de editar, [arquitectura](docs/ARCHITECTURE.md)
