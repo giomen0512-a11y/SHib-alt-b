@@ -6,10 +6,11 @@ from uuid import UUID
 from trading_engine.execution.contracts import ExecutionAdapter
 from trading_engine.market_data.contracts import MarketDataProvider
 from trading_engine.models.account import BalanceSnapshot, Position
+from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.decisions import RiskDecision, StrategyResult
 from trading_engine.models.enums import OrderStatus
 from trading_engine.models.ids import FillId, SignalId
-from trading_engine.models.market import Candle
+from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order, OrderIntent
 from trading_engine.models.rounds import Round
 from trading_engine.models.signals import Signal
@@ -33,6 +34,30 @@ class FakeStrategy:
 
     def on_candle(
         self, candle: Candle, position: Position | None, round_state: Round | None
+    ) -> StrategyResult:
+        return self.response
+
+    def on_quote(
+        self, quote: Quote, position: Position | None, round_state: Round | None
+    ) -> StrategyResult:
+        return self.response
+
+    def on_order(
+        self, order: Order, position: Position | None, round_state: Round | None
+    ) -> StrategyResult:
+        return self.response
+
+    def on_fill(
+        self, fill: Fill, order: Order, position: Position | None, round_state: Round | None
+    ) -> StrategyResult:
+        return self.response
+
+    def on_scheduled_action(
+        self,
+        action: ScheduledAction,
+        quote: Quote,
+        position: Position | None,
+        round_state: Round | None,
     ) -> StrategyResult:
         return self.response
 
@@ -98,3 +123,21 @@ def test_contracts_support_no_intent_and_explicit_rejection(
     risk: RiskManager = FakeRisk(RiskDecision(False, "Canned rejection"))
     assert strategy.on_candle(candle, position, round_state) == StrategyResult()
     assert not risk.evaluate(intent, balance, position).approved
+
+
+def test_strategy_protocol_accepts_all_event_handlers(
+    candle: Candle,
+    quote: Quote,
+    order: Order,
+    fill: Fill,
+    action: ScheduledAction,
+    position: Position,
+    round_state: Round,
+) -> None:
+    response = StrategyResult(scheduled_actions=(action,))
+    strategy: StrategyEngine = FakeStrategy(response)
+    assert strategy.on_candle(candle, position, round_state) is response
+    assert strategy.on_quote(quote, position, round_state) is response
+    assert strategy.on_order(order, position, round_state) is response
+    assert strategy.on_fill(fill, order, position, round_state) is response
+    assert strategy.on_scheduled_action(action, quote, position, round_state) is response

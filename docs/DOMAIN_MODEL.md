@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 2
+# Modelos de dominio — Fase 2.1
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -12,7 +12,7 @@ original y sus garantías de Fase 0.
 | Symbol | Texto no vacío, sin ningún whitespace, normalizado a mayúsculas; sin catálogo de exchange. |
 | Price / Quantity | Decimal finito estrictamente positivo; sin conversión implícita, cuantización ni redondeo. |
 | Money | Decimal finito firmado, admite cero y negativos; currency no vacía, sin whitespace, en mayúsculas. |
-| IDs | RoundId, SignalId, IntentId, OrderId y FillId son NewType sobre UUID. |
+| IDs | RoundId, SignalId, IntentId, OrderId, FillId y ActionId son NewType sobre UUID. |
 
 Un float, bool, int o string no es un Decimal válido en campos financieros.
 El llamador puede convertir texto/enteros mediante `to_decimal` antes de construir.
@@ -20,9 +20,13 @@ Money no define operaciones aritméticas ni conversión FX; no mezcla monedas
 automáticamente. No se introduce Percentage/Ratio sin un uso especificado.
 
 Los IDs son nominalmente distintos para mypy. En runtime son UUID, no wrappers
-distintos; los modelos rechazan strings arbitrarios. El llamador asigna IDs y
-garantiza unicidad. No hay generación automática: permite inyectar IDs deterministas
-sin acoplar el dominio a un reloj o fuente aleatoria.
+distintos; los modelos rechazan strings arbitrarios y exigen IDs explícitos al
+construir, sin generación automática. StrategyCoordinator no genera IDs.
+Fase 2.1 no define todavía la política de asignación para nuevos outputs de una
+estrategia concreta. Antes de implementar Alternativa B, Fase 3B deberá definir
+una política determinista e idempotente compatible con Replay, Shadow, Live y
+recovery. No se permitirá generación aleatoria implícita; no se implementa un
+generador en esta fase.
 
 Side: BUY/SELL. PositionSide: LONG/SHORT (cantidad siempre positiva, sin Hedge Mode).
 OrderType: MARKET/LIMIT. OrderStatus: PENDING, OPEN, PARTIALLY_FILLED, FILLED,
@@ -34,20 +38,31 @@ Los constructores requieren enums reales; no aceptan strings como estados.
 - **Candle**: símbolo, apertura/cierre temporal, OHLC Price y volumen Decimal >= 0.
   `open_time < close_time`; high contiene open, close y low; low no supera
   open, close ni high. No fija duración ni intervalo.
+- **Quote**: Symbol, timestamp UTC aware, bid y ask Price estrictamente positivos;
+  exige bid <= ask y es frozen. Snapshot ejecutable básico sin profundidad,
+  Mark Price, slippage ni restricciones de spread. Quote puede servir para sizing
+  o decisiones, pero no es Fill ni garantiza un precio de ejecución.
+- **ScheduledAction**: ActionId, RoundId, Symbol, kind textual no vacío,
+  created_at y not_before UTC aware; exige not_before >= created_at.
+  Frozen, con UUID suministrados por el llamador; sin generación automática,
+  Quantity, metadata ni enums financieros. Expresa una reevaluación futura,
+  no una orden concreta.
 - **Signal**: SignalId, símbolo, timestamp y `kind` textual no vacío. No define
   condiciones de entrada, parámetros de Alternativa B ni metadata arbitraria.
-- **StrategyResult**: resultado inmutable con únicamente `signals: tuple[Signal, ...]`
-  y `order_intents: tuple[OrderIntent, ...]`, ambas vacías por defecto e independientes.
-  Rechaza contenedores mutables y elementos de tipos distintos de Signal/OrderIntent.
-  StrategyEngine → StrategyResult → signals + order_intents. La coordinación podrá
-  registrar/notificar señales y someter intenciones a RiskManager. No implementa
-  generación de señales, coordinación ni temporización; todos los modos compartirán
-  el mismo StrategyEngine.
-- **OrderIntent**: petición del motor con IntentId, RoundId, símbolo, Side,
-  OrderType, Quantity, created_at y not_before. Ambos tiempos son proporcionados
-  explícitamente por el llamador: created_at es la creación causal y not_before
-  la primera elegibilidad. Requiere not_before >= created_at; igualdad permite
-  ejecución inmediata. No existe timestamp ni generación automática de tiempos.
+- **StrategyResult**: resultado frozen con únicamente `signals: tuple[Signal, ...]`,
+  `scheduled_actions: tuple[ScheduledAction, ...]` y
+  `order_intents: tuple[OrderIntent, ...]`, todas vacías por defecto e independientes.
+  Rechaza contenedores distintos de tuple y elementos de tipo incorrecto.
+  StrategyEngine → StrategyResult → signals + scheduled_actions + order_intents.
+  Todos los modos compartirán el mismo StrategyEngine por eventos.
+  El coordinador valida que cada ScheduledAction/OrderIntent nuevo tenga
+  created_at >= event_time del handler, sin corregir timestamps. Esto no impone
+  una validación retroactiva sobre las acciones ya presentes en su estado.
+- **OrderIntent**: petición concreta del motor con IntentId, RoundId, símbolo,
+  Side, OrderType, Quantity y created_at UTC aware. Está lista para procesamiento
+  inmediato, sujeto a RiskManager y ExecutionAdapter. No contiene not_before
+  ni conserva compatibilidad con ese antiguo campo. Scheduling corresponde
+  exclusivamente a ScheduledAction; no hay reloj ni generación automática.
   Contrato basado únicamente en cantidad:
   no existe notional. LIMIT exige limit_price Price; MARKET lo prohíbe.
   `reduce_only` es un bool real e inmutable, False por defecto; rechaza int/string
@@ -73,14 +88,14 @@ Los constructores requieren enums reales; no aceptan strings como estados.
   requiere motivo. No contiene reglas ni evaluación financiera.
 
 Todos los timestamps deben ser datetime UTC timezone-aware. Las fuentes externas
-normalizarán a UTC antes de construir. Order requiere intent.not_before <=
+normalizarán a UTC antes de construir. Order requiere intent.created_at <=
 created_at <= updated_at. filled_quantity nunca supera la solicitada.
 PENDING/OPEN/REJECTED requieren cero; PARTIALLY_FILLED exige 0 < filled < requested;
 FILLED exige igualdad; CANCELED permite cero o parcial, nunca cantidad completa.
 Son invariantes de snapshots, no una máquina de transiciones ni un reconciliador.
 
-Los modelos temporales `CoordinatorState`, `CoordinationResult` y `DueIntentsResult`
-residen en `orchestration/models.py`. Solo contienen pending, señales/due y estado,
+Los modelos temporales `CoordinatorState`, `CoordinationResult` y `DueActionsResult`
+residen en `orchestration/models.py`. Contienen acciones pendientes/due, señales, intenciones y estado,
 sin contexto financiero. Su orden canónico y uso de tiempo explícito se describen
 en [ORCHESTRATION.md](ORCHESTRATION.md).
 
@@ -92,8 +107,11 @@ siempre el orden temporal. No se validan transiciones entre snapshots.
 
 ## Límites
 
-OrderIntent expresa lo deseado, Order lo reportado por un adaptador y Fill una
-ejecución individual. Round identifica el ciclo; Position describe exposición,
+ScheduledAction expresa una reevaluación futura sin orden completa.
+OrderIntent expresa una orden concreta, Order lo reportado por un adaptador y Fill una
+ejecución individual. Quote no fija fills: el precio real pertenece al adaptador
+o al futuro modelo de ejecución Replay, y P0 seguirá dependiendo de Fill.
+Round identifica el ciclo; Position describe exposición,
 sin deducir que un snapshot equivale al estado de una ronda completa.
 
 Implementaciones externas → Protocols centrales → modelos de dominio.

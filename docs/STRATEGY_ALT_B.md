@@ -256,9 +256,10 @@ antes de ese instante. La estrategia no usa `sleep`; el coordinador trabaja
 con tiempo explícito. Los filtros no se recalculan durante esos 120 segundos.
 Condiciones operativas o de seguridad sí pueden invalidar la entrada.
 
-Esta temporización expresa la acción futura requerida; no supone que el
-contrato actual ya pueda programarla sin fijar anticipadamente una Quantity.
-La corrección necesaria se identifica en los prerequisitos de implementación.
+Esta temporización expresa la acción futura requerida. La arquitectura de
+Fase 2.1 permite representarla mediante ScheduledAction sin fijar anticipadamente
+una Quantity; OrderIntent queda reservado para una orden ya concreta.
+La estrategia y su temporización específica todavía no están implementadas.
 
 ## 12. PAUSE, RESUME y cambio de capital
 
@@ -352,16 +353,16 @@ Una señal a `T` no debe fijar prematuramente la Quantity de Base cuando depende
 del precio ejecutable en `T + 120s`. `P0` solo existe después de resolver los
 fills de Base; DCA y TP dependen de fills reales.
 
-El `StrategyEngine` actual solo reacciona a `Candle`. Antes de implementar
-Alternativa B se necesita una corrección arquitectónica que permita:
+En la base revisada de Fase 3A, `StrategyEngine` solo reaccionaba a `Candle`.
+La corrección arquitectónica necesaria debía permitir:
 
 - Programar una acción futura sin fijar prematuramente una `OrderIntent`
   completa.
 - Reaccionar a eventos `Fill`/`Order`.
 
-Estos prerequisitos se documentan, pero no se implementan en Fase 3A. No se
-modifican los modelos ni los contratos actuales descritos en
-[DOMAIN_MODEL.md](DOMAIN_MODEL.md), la arquitectura de
-[ARCHITECTURE.md](ARCHITECTURE.md) o la coordinación de
-[ORCHESTRATION.md](ORCHESTRATION.md). La implementación posterior conservará
-un mismo motor para Replay, Shadow y Live.
+Fase 2.1 incorpora esos contratos: ScheduledAction sin Quantity y un único
+StrategyEngine con handlers de Candle, Quote, Order, Fill y ScheduledAction.
+Esta corrección no implementa Alternativa B, P0, DCA ni TP. Los contratos y la
+coordinación se describen en [DOMAIN_MODEL.md](DOMAIN_MODEL.md),
+[ARCHITECTURE.md](ARCHITECTURE.md) y [ORCHESTRATION.md](ORCHESTRATION.md).
+Replay, Shadow y Live conservarán el mismo motor.

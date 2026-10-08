@@ -1,4 +1,4 @@
-"""Velas independientes del origen y del intervalo de mercado."""
+"""Velas y quotes independientes del proveedor de mercado."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -32,3 +32,19 @@ class Candle:
         if self.low.value > min(self.open.value, self.close.value, self.high.value):
             raise ValueError("low no puede ser superior a open, close o high")
         finite_decimal(self.volume, "volume", nonnegative=True)
+
+
+@dataclass(frozen=True)
+class Quote:
+    symbol: Symbol
+    timestamp: datetime
+    bid: Price
+    ask: Price
+
+    def __post_init__(self) -> None:
+        require_type(self.symbol, Symbol, "symbol")
+        utc_timestamp(self.timestamp, "timestamp")
+        require_type(self.bid, Price, "bid")
+        require_type(self.ask, Price, "ask")
+        if self.bid.value > self.ask.value:
+            raise ValueError("bid no puede superar ask")

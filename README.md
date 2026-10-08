@@ -1,7 +1,8 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3A — especificación de estrategia**.
-Incluye infraestructura, modelos, contratos y coordinación temporal determinista.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 2.1 — arquitectura de eventos**.
+Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
+de acciones programadas separadas de las intenciones ejecutables.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
 
@@ -51,7 +52,7 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 
 - `src/trading_engine/config`, `models`, `utils`: configuración, modelos, estados y utilidades.
 - `market_data`, `strategy`, `risk`, `execution`: Protocols mínimos del motor.
-- `orchestration`: estado inmutable, coordinación de velas y elegibilidad por tiempo explícito;
+- `orchestration`: estado inmutable, coordinación por eventos y acciones elegibles por tiempo explícito;
   no ejecuta órdenes ni utiliza reloj interno.
 - `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.
 - `replay`, `shadow`, `live`, `add_margin`, `persistence`, `binance`, `telegram`:
@@ -61,6 +62,6 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 
 Lee [AGENTS.md](AGENTS.md) antes de editar, [arquitectura](docs/ARCHITECTURE.md)
 y [modelos de dominio](docs/DOMAIN_MODEL.md) para conocer los contratos e invariantes.
-La [coordinación temporal](docs/ORCHESTRATION.md) explica created_at, not_before y pending/due.
+La [coordinación temporal](docs/ORCHESTRATION.md) explica ScheduledAction, pending/due y el flujo de Quote/Fill.
 La aplicación de producción no depende de Codex,
 ChatGPT ni OpenAI.

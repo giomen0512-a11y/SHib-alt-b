@@ -1,44 +1,45 @@
-# Arquitectura mínima — Fase 2
+# Arquitectura mínima — Fase 2.1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
 ```text
-MarketDataProvider
+Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
     ↓
-Candle
+StrategyEngine (único núcleo compartido)
     ↓
-StrategyEngine
-    ↓
-StrategyResult
+StrategyResult (signals + scheduled_actions + order_intents)
     ↓
 StrategyCoordinator
-    ├─ signals → Signal
-    └─ pending OrderIntent
-                          ↓
-                  not_before alcanzado
-                          ↓
-                     due OrderIntent
-                          ↓
-                     RiskManager
-                          ↓
-                    ExecutionAdapter
+    ├─ signals → llamador
+    ├─ order_intents → llamador → RiskManager → ExecutionAdapter (futuro)
+    └─ scheduled_actions → state.pending_actions
+                                ↓ advance_time(state, now)
+                           DueActionsResult
+                                ↓ runner obtiene Quote actual
+                      coordinator.on_scheduled_action
+                                ↓ StrategyEngine.on_scheduled_action
+                           StrategyResult
 ```
 
-Este flujo define límites mediante Protocols y coordinación temporal pura.
-RiskManager → ExecutionAdapter es un paso operativo futuro que el coordinador
-no invoca en Fase 2.
+Este flujo define límites mediante Protocols y coordinación pura por eventos.
+RiskManager → ExecutionAdapter es un paso operativo futuro; el coordinador no
+invoca esas capas. Una ScheduledAction programa una reevaluación sin Quantity;
+una OrderIntent ya es concreta y está lista para procesamiento inmediato sujeto
+al riesgo y la ejecución. Quote es un snapshot bid/ask, no un Fill ni una garantía
+de precio ejecutado. El precio efectivo y el futuro P0 proceden de fills reales.
 Los futuros adaptadores serán `ReplayExecutionAdapter`, `ShadowExecutionAdapter`
 y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
 
 - `market_data/contracts.py`: `MarketDataProvider.candles(symbol)` expone un
   iterador de Candle; no conoce la estrategia ni fija intervalos/orígenes.
-- `strategy/contracts.py`: `StrategyEngine.on_candle(candle, position, round_state)`
-  recibe datos y snapshots opcionales y retorna StrategyResult inmutable con
-  `signals: tuple[Signal, ...]` y `order_intents: tuple[OrderIntent, ...]`.
-  Ambas tuplas pueden estar vacías de manera independiente. No implementa
-  condiciones de entrada. Posteriormente la coordinación podrá registrar/notificar
-  Signal y procesar las intenciones elegibles mediante RiskManager; esos efectos
-  operativos no se implementan aún.
+- `strategy/contracts.py`: `StrategyEngine` soporta `on_candle`, `on_quote`,
+  `on_order`, `on_fill` y `on_scheduled_action`. Todos reciben snapshots de
+  dominio y retornan StrategyResult inmutable con `signals: tuple[Signal, ...]`,
+  `scheduled_actions: tuple[ScheduledAction, ...]` y
+  `order_intents: tuple[OrderIntent, ...]`, vacías por defecto e independientes.
+  `on_fill` recibe Fill y Order; `on_scheduled_action` recibe acción y Quote.
+  El motor sigue siendo puro: no recibe adaptadores, riesgo, bases de datos,
+  Binance, Telegram ni secretos. No implementa condiciones de entrada.
 - `risk/contracts.py`: `RiskManager.evaluate(intent, balance, position)` retorna
   RiskDecision con aprobación explícita o rechazo con motivo, sin reglas de riesgo.
 - `execution/contracts.py`: `ExecutionAdapter.submit(intent)` retorna un snapshot
@@ -48,10 +49,21 @@ y `BinanceLiveExecutionAdapter`. Los contratos actuales son:
 La dirección es implementaciones externas → contratos → modelos. Los modelos
 solo dependen de biblioteca estándar y utilidades centrales; los contratos solo
 de biblioteca estándar y modelos. `orchestration` depende de modelos y del contrato
-StrategyEngine: incorpora pending, expone señales y determina due con tiempo
-inyectado. No usa reloj interno ni fija delays. Consulta
+StrategyEngine: incorpora acciones pendientes, expone señales e intenciones y
+determina acciones due con tiempo inyectado. No usa reloj interno ni fija delays. Consulta
 [coordinación temporal](ORCHESTRATION.md) para el estado y sus resultados.
 Consulta [modelos de dominio](DOMAIN_MODEL.md) para sus invariantes.
+
+El coordinador exige Quote.timestamp >= ScheduledAction.not_before antes de
+evaluar una acción. También rechaza ScheduledAction/OrderIntent nuevos con
+created_at anterior al evento causal; los tiempos de cada handler y el tratamiento
+de fills observados fuera de orden se detallan en ORCHESTRATION.md.
+
+Fase 2.1 no define la política de asignación de IDs para nuevos outputs de una
+estrategia concreta. StrategyCoordinator no genera IDs. Antes de implementar
+Alternativa B, Fase 3B deberá definir una política determinista e idempotente
+compatible con Replay, Shadow, Live y recovery, sin generación aleatoria implícita.
+No se diseña ni implementa esa política en esta fase.
 
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
@@ -94,7 +106,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 2 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 2.1 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno

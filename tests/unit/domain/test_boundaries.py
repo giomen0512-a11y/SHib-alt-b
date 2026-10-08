@@ -57,7 +57,6 @@ def test_all_snapshots_reject_non_utc_offsets(
         (candle, "open_time"),
         (candle, "close_time"),
         (intent, "created_at"),
-        (intent, "not_before"),
         (order, "created_at"),
         (order, "updated_at"),
         (position, "timestamp"),

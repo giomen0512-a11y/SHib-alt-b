@@ -1,4 +1,4 @@
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, fields, replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -6,25 +6,17 @@ import pytest
 from trading_engine.models.orders import Order, OrderIntent
 
 
-@pytest.mark.parametrize("seconds", [0, 1, 120, 86400])
-def test_intent_accepts_explicit_immediate_or_deferred_times(
-    intent: OrderIntent, seconds: int
-) -> None:
-    result = replace(intent, not_before=intent.created_at + timedelta(seconds=seconds))
-    assert result.not_before >= result.created_at
-    assert not hasattr(result, "timestamp")
+def test_intent_is_immediate_and_has_only_creation_time(intent: OrderIntent) -> None:
+    assert "not_before" not in {item.name for item in fields(OrderIntent)}
+    assert not hasattr(intent, "not_before")
+    assert not hasattr(intent, "timestamp")
+    assert isinstance(intent.created_at, datetime)
+    with pytest.raises(TypeError):
+        replace(intent, not_before=intent.created_at)  # type: ignore[call-arg]
     with pytest.raises(FrozenInstanceError):
-        result.not_before = result.created_at  # type: ignore[misc]
-    with pytest.raises(FrozenInstanceError):
-        result.created_at = result.not_before  # type: ignore[misc]
+        intent.created_at = intent.created_at + timedelta(seconds=1)  # type: ignore[misc]
 
 
-def test_intent_rejects_eligibility_before_creation(intent: OrderIntent) -> None:
-    with pytest.raises(ValueError, match="not_before"):
-        replace(intent, not_before=intent.created_at - timedelta(microseconds=1))
-
-
-@pytest.mark.parametrize("field", ["created_at", "not_before"])
 @pytest.mark.parametrize(
     "value, error",
     [
@@ -34,32 +26,32 @@ def test_intent_rejects_eligibility_before_creation(intent: OrderIntent) -> None
         (None, TypeError),
     ],
 )
-def test_intent_requires_utc_datetimes(
-    intent: OrderIntent, field: str, value: object, error: type[Exception]
+def test_intent_requires_utc_creation_time(
+    intent: OrderIntent, value: object, error: type[Exception]
 ) -> None:
     with pytest.raises(error):
-        replace(intent, **{field: value})  # type: ignore[arg-type]
+        replace(intent, created_at=value)  # type: ignore[arg-type]
 
 
-def test_order_cannot_be_accepted_before_deferred_eligibility(order: Order) -> None:
-    deferred = replace(order.intent, not_before=order.intent.created_at + timedelta(seconds=37))
+def test_order_cannot_be_accepted_before_intent_creation(order: Order) -> None:
+    later = replace(order.intent, created_at=order.intent.created_at + timedelta(seconds=37))
     with pytest.raises(ValueError):
-        replace(order, intent=deferred)
+        replace(order, intent=later)
     with pytest.raises(ValueError):
         replace(
             order,
-            intent=deferred,
-            created_at=deferred.not_before - timedelta(microseconds=1),
-            updated_at=deferred.not_before,
+            intent=later,
+            created_at=later.created_at - timedelta(microseconds=1),
+            updated_at=later.created_at,
         )
     accepted = replace(
-        order, intent=deferred, created_at=deferred.not_before, updated_at=deferred.not_before
+        order, intent=later, created_at=later.created_at, updated_at=later.created_at
     )
-    assert accepted.created_at == deferred.not_before
+    assert accepted.created_at == later.created_at
     assert replace(
         accepted,
-        created_at=deferred.not_before + timedelta(seconds=1),
-        updated_at=deferred.not_before + timedelta(seconds=1),
+        created_at=later.created_at + timedelta(seconds=1),
+        updated_at=later.created_at + timedelta(seconds=1),
     )
     with pytest.raises(ValueError):
         replace(accepted, updated_at=accepted.created_at - timedelta(microseconds=1))

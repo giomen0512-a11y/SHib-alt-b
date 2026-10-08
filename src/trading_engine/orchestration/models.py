@@ -3,44 +3,49 @@
 from dataclasses import dataclass
 
 from trading_engine.models._validation import require_type
+from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.orders import OrderIntent
 from trading_engine.models.signals import Signal
 
 
-def _canonical_intents(intents: tuple[OrderIntent, ...]) -> tuple[OrderIntent, ...]:
-    require_type(intents, tuple, "intents")
-    for intent in intents:
-        require_type(intent, OrderIntent, "intent")
-    if len({intent.intent_id for intent in intents}) != len(intents):
-        raise ValueError("intent_id duplicado")
-    return tuple(sorted(intents, key=lambda intent: (intent.not_before, intent.intent_id.int)))
+def _canonical_actions(actions: tuple[ScheduledAction, ...]) -> tuple[ScheduledAction, ...]:
+    require_type(actions, tuple, "actions")
+    for action in actions:
+        require_type(action, ScheduledAction, "action")
+    if len({action.action_id for action in actions}) != len(actions):
+        raise ValueError("action_id duplicado")
+    return tuple(sorted(actions, key=lambda action: (action.not_before, action.action_id.int)))
 
 
 @dataclass(frozen=True)
 class CoordinatorState:
-    pending_intents: tuple[OrderIntent, ...] = ()
+    pending_actions: tuple[ScheduledAction, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "pending_intents", _canonical_intents(self.pending_intents))
+        object.__setattr__(self, "pending_actions", _canonical_actions(self.pending_actions))
 
 
 @dataclass(frozen=True)
 class CoordinationResult:
     signals: tuple[Signal, ...]
+    order_intents: tuple[OrderIntent, ...]
     state: CoordinatorState
 
     def __post_init__(self) -> None:
         require_type(self.signals, tuple, "signals")
         for signal in self.signals:
             require_type(signal, Signal, "signal")
+        require_type(self.order_intents, tuple, "order_intents")
+        for intent in self.order_intents:
+            require_type(intent, OrderIntent, "order_intent")
         require_type(self.state, CoordinatorState, "state")
 
 
 @dataclass(frozen=True)
-class DueIntentsResult:
-    due_intents: tuple[OrderIntent, ...]
+class DueActionsResult:
+    due_actions: tuple[ScheduledAction, ...]
     state: CoordinatorState
 
     def __post_init__(self) -> None:
         require_type(self.state, CoordinatorState, "state")
-        object.__setattr__(self, "due_intents", _canonical_intents(self.due_intents))
+        object.__setattr__(self, "due_actions", _canonical_actions(self.due_actions))
