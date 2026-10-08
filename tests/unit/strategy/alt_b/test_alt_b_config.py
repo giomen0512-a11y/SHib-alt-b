@@ -13,8 +13,17 @@ DECIMAL_FIELDS = (
     "amount_multiplier",
     "base_weight",
     "dca1_weight",
+    "change_24h_min",
+    "change_24h_max",
+    "range_4h_min",
+    "pullback_1h_min",
+    "veto_a_volume_multiplier",
+    "veto_a_drop_1h_min",
+    "veto_b_buy_ratio_max",
+    "veto_b_volume_multiplier",
+    "veto_b_rv_multiplier",
 )
-INT_FIELDS = ("leverage", "additional_dca_orders")
+INT_FIELDS = ("leverage", "additional_dca_orders", "warmup_minutes")
 BOOL_FIELDS = ("strategy_stop", "trailing", "reinvest_order_sizes")
 
 
@@ -35,6 +44,16 @@ def test_defaults_are_the_complete_canonical_snapshot() -> None:
         "strategy_stop": False,
         "trailing": False,
         "reinvest_order_sizes": False,
+        "change_24h_min": Decimal("-0.045"),
+        "change_24h_max": Decimal("0.08"),
+        "range_4h_min": Decimal("0.022"),
+        "pullback_1h_min": Decimal("0.011"),
+        "veto_a_volume_multiplier": Decimal("8"),
+        "veto_a_drop_1h_min": Decimal("0.01"),
+        "veto_b_buy_ratio_max": Decimal("0.25"),
+        "veto_b_volume_multiplier": Decimal("2.5"),
+        "veto_b_rv_multiplier": Decimal("1.5"),
+        "warmup_minutes": 1560,
     }
 
 

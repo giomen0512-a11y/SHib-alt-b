@@ -18,6 +18,7 @@ class Candle:
     low: Price
     close: Price
     volume: Decimal
+    taker_buy_base_volume: Decimal | None = None
 
     def __post_init__(self) -> None:
         require_type(self.symbol, Symbol, "symbol")
@@ -32,6 +33,10 @@ class Candle:
         if self.low.value > min(self.open.value, self.close.value, self.high.value):
             raise ValueError("low no puede ser superior a open, close o high")
         finite_decimal(self.volume, "volume", nonnegative=True)
+        if self.taker_buy_base_volume is not None:
+            finite_decimal(self.taker_buy_base_volume, "taker_buy_base_volume", nonnegative=True)
+            if self.taker_buy_base_volume > self.volume:
+                raise ValueError("taker_buy_base_volume no puede superar volume")
 
 
 @dataclass(frozen=True)

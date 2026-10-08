@@ -1,11 +1,14 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-1A — matemáticas puras de Alternativa B**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-1B — filtros y vetos de entrada de Alternativa B**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
 Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
 Incluye `AltBConfig` y cálculos puros de pesos, márgenes, nocionales, desviaciones
 y precios DCA, promedio de fills y TP teórico; sin un StrategyEngine concreto.
+La evaluación pura de entrada agrega minutos UTC a bloques 15m y calcula filtros,
+vetos A/B y RV poblacional con taker-buy real. Devuelve `EntryEvaluation`;
+datos insuficientes bloquean la entrada y las velas futuras se rechazan.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
 
@@ -56,7 +59,8 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 - `src/trading_engine/config`, `models`, `utils`: configuración, modelos, estados y utilidades.
 - `market_data`, `strategy`, `risk`, `execution`: Protocols mínimos del motor.
 - `strategy/alt_b`: configuración canónica y matemáticas Decimal de Alternativa B,
-  con precisión local fija de 50 dígitos; sin redondeo de exchange ni ejecución.
+  agregación 15m y evaluación causal de entrada con 1560 minutos de warmup,
+  precisión local fija de 50 dígitos; sin señales, redondeo de exchange ni ejecución.
 - `orchestration`: estado inmutable, coordinación por eventos y acciones elegibles por tiempo explícito;
   no ejecuta órdenes ni utiliza reloj interno.
 - `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.

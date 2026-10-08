@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 2.2
+# Modelos de dominio — Fase 3B-1B
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -38,9 +38,13 @@ Los constructores requieren enums reales; no aceptan strings como estados.
 
 ## Datos y snapshots
 
-- **Candle**: símbolo, apertura/cierre temporal, OHLC Price y volumen Decimal >= 0.
+- **Candle**: símbolo, apertura/cierre temporal, OHLC Price y volumen base Decimal >= 0.
   `open_time < close_time`; high contiene open, close y low; low no supera
-  open, close ni high. No fija duración ni intervalo.
+  open, close ni high. No fija duración ni intervalo. El campo final opcional
+  `taker_buy_base_volume: Decimal | None = None` conserva los constructores previos.
+  Es volumen base comprado por takers: cuando está disponible exige Decimal real,
+  finito y `0 <= taker_buy_base_volume <= volume`; no convierte float/int/bool/texto.
+  None significa ausencia del dato, nunca cero. Ambos campos son inmutables.
 - **Quote**: Symbol, timestamp UTC aware, bid y ask Price estrictamente positivos;
   exige bid <= ask y es frozen. Snapshot ejecutable básico sin profundidad,
   Mark Price, slippage ni restricciones de spread. Quote puede servir para sizing
@@ -96,6 +100,25 @@ created_at <= updated_at. filled_quantity nunca supera la solicitada.
 PENDING/OPEN/REJECTED requieren cero; PARTIALLY_FILLED exige 0 < filled < requested;
 FILLED exige igualdad; CANCELED permite cero o parcial, nunca cantidad completa.
 Son invariantes de snapshots, no una máquina de transiciones ni un reconciliador.
+
+Alternativa B añade restricciones temporales en `strategy/alt_b/market.py`, sin
+fijarlas en Candle genérico: cada 1m representa `[open_time, close_time)` con
+apertura al minuto exacto y cierre exactamente un minuto después. Un bloque 15m
+requiere 15 minutos consecutivos del mismo Symbol desde 00/15/30/45 UTC;
+agrega OHLC y volúmenes, conservando taker-buy=None si falta en cualquier minuto.
+Las fuentes deben entregar intervalos ya normalizados; no se corrigen timestamps
+del proveedor ni se completan gaps en la estrategia.
+
+`strategy/alt_b/entry.py` define `EntryEvaluation`, independiente de StrategyResult:
+checkpoint_at, data_valid, entry_allowed y reason; change_24h/range_4h/pullback_1h
+con sus flags pass; v15, med_vol_4h, drop_1h, veto_a; buy_ratio_real, med_vol_24h,
+rv30m, rv_ref_24h y veto_b. Es frozen, exige bool reales y métricas Decimal finitas
+en sus rangos. Una evaluación válida exige todas las métricas/flags disponibles
+y denominadores/referencias positivos. entry_allowed exige la conjunción de
+filtros PASS sin vetos.
+Datos inválidos siempre bloquean la entrada con razón reconocida; las métricas
+y los flags no calculados quedan en None. No representa una señal ni una orden.
+Los códigos de razón y la evaluación causal se describen en STRATEGY_ALT_B.md.
 
 Los modelos temporales `CoordinatorState`, `CoordinationResult` y `DueActionsResult`
 residen en `orchestration/models.py`. Contienen acciones pendientes/due, señales, intenciones y estado,

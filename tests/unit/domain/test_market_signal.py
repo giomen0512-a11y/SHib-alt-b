@@ -20,6 +20,39 @@ def test_candle_has_no_fixed_interval_and_allows_zero_volume(candle: Candle) -> 
         candle.volume = Decimal("1")  # type: ignore[misc]
 
 
+@pytest.mark.parametrize("taker_buy", [None, Decimal("0"), Decimal("5"), Decimal("10")])
+def test_candle_accepts_real_taker_buy_or_missing(
+    candle: Candle, taker_buy: Decimal | None
+) -> None:
+    result = replace(candle, volume=Decimal("10"), taker_buy_base_volume=taker_buy)
+    assert result.taker_buy_base_volume is taker_buy
+    assert candle.taker_buy_base_volume is None  # constructor original compatible
+    with pytest.raises(FrozenInstanceError):
+        result.taker_buy_base_volume = None  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    "taker_buy",
+    [
+        Decimal("10.00001"),
+        Decimal("-1"),
+        Decimal("NaN"),
+        Decimal("sNaN"),
+        Decimal("Infinity"),
+        Decimal("-Infinity"),
+        0.1,
+        1,
+        True,
+        False,
+        "1",
+    ],
+)
+def test_candle_rejects_invalid_taker_buy(candle: Candle, taker_buy: object) -> None:
+    error = ValueError if isinstance(taker_buy, Decimal) else TypeError
+    with pytest.raises(error):
+        replace(candle, volume=Decimal("10"), taker_buy_base_volume=taker_buy)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     "changes",
     [

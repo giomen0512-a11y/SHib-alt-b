@@ -23,6 +23,16 @@ class AltBConfig:
     strategy_stop: bool = False
     trailing: bool = False
     reinvest_order_sizes: bool = False
+    change_24h_min: Decimal = Decimal("-0.045")
+    change_24h_max: Decimal = Decimal("0.08")
+    range_4h_min: Decimal = Decimal("0.022")
+    pullback_1h_min: Decimal = Decimal("0.011")
+    veto_a_volume_multiplier: Decimal = Decimal("8")
+    veto_a_drop_1h_min: Decimal = Decimal("0.01")
+    veto_b_buy_ratio_max: Decimal = Decimal("0.25")
+    veto_b_volume_multiplier: Decimal = Decimal("2.5")
+    veto_b_rv_multiplier: Decimal = Decimal("1.5")
+    warmup_minutes: int = 1560
 
     def __post_init__(self) -> None:
         require_type(self.strategy_id, str, "strategy_id")
@@ -36,6 +46,7 @@ class AltBConfig:
         for name, int_value, int_expected in (
             ("leverage", self.leverage, 4),
             ("additional_dca_orders", self.additional_dca_orders, 7),
+            ("warmup_minutes", self.warmup_minutes, 1560),
         ):
             if type(int_value) is not int:
                 raise TypeError(f"{name} debe ser int")
@@ -53,6 +64,21 @@ class AltBConfig:
             finite_decimal(decimal_value, name)
             if decimal_value <= 0 or decimal_value != decimal_expected:
                 raise ValueError(f"{name} debe conservar el valor canónico positivo")
+
+        for name, decimal_value, decimal_expected in (
+            ("change_24h_min", self.change_24h_min, Decimal("-0.045")),
+            ("change_24h_max", self.change_24h_max, Decimal("0.08")),
+            ("range_4h_min", self.range_4h_min, Decimal("0.022")),
+            ("pullback_1h_min", self.pullback_1h_min, Decimal("0.011")),
+            ("veto_a_volume_multiplier", self.veto_a_volume_multiplier, Decimal("8")),
+            ("veto_a_drop_1h_min", self.veto_a_drop_1h_min, Decimal("0.01")),
+            ("veto_b_buy_ratio_max", self.veto_b_buy_ratio_max, Decimal("0.25")),
+            ("veto_b_volume_multiplier", self.veto_b_volume_multiplier, Decimal("2.5")),
+            ("veto_b_rv_multiplier", self.veto_b_rv_multiplier, Decimal("1.5")),
+        ):
+            finite_decimal(decimal_value, name)
+            if decimal_value != decimal_expected:
+                raise ValueError(f"{name} debe conservar el valor canónico")
 
         for name, bool_value in (
             ("strategy_stop", self.strategy_stop),

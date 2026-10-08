@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-1A
+# Arquitectura mínima — Fase 3B-1B
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -83,6 +83,27 @@ no terminantes se calculan a esa precisión; ningún nivel absorbe un residuo de
 presupuesto. Solo depende de biblioteca estándar, AltBConfig y modelos necesarios;
 no hace I/O ni accede a reloj, adaptadores, coordinación o servicios externos.
 
+Fase 3B-1B añade `strategy/alt_b/market.py` y `entry.py`: minutos UTC normalizados
+→ bloques exactos 15m → filtros y vetos A/B → `EntryEvaluation` frozen. No conecta
+este resultado con el contrato StrategyEngine ni emite Signal, Round,
+ScheduledAction u OrderIntent. Solo Symbol y order_budget siguen configurables;
+los umbrales y el warmup de 1560 minutos son canónicos y congelados.
+
+La evaluación requiere 26h consecutivas hasta un checkpoint UTC de 15m y rechaza
+cualquier vela con cierre posterior, incluso si no pertenece a la ventana útil.
+Dentro de la ventana no ordena, rellena ni interpola datos; la historia anterior
+no participa en las fórmulas. Taker-buy se exige únicamente en el bloque actual
+y nunca se sustituye por volumen total, quote o proxy. Las medianas de volumen
+usan 16/96 bloques anteriores; RVref24h usa 96 snapshots anteriores, todos
+excluyen el actual. RV30m usa 31 cierres para 30 log returns, ddof=0 y sin anualizar.
+Todos los cálculos reutilizan el Context local de 50 dígitos de la matemática pura.
+
+Los errores de tipos, checkpoint, símbolo configurado o datos futuros producen
+TypeError/ValueError. La calidad de mercado insuficiente produce data_valid=False,
+entry_allowed=False y una razón estable, con métricas/flags no calculados en None.
+Consulta [Alternativa B](STRATEGY_ALT_B.md) para razones, precedencia y fórmulas;
+[modelos](DOMAIN_MODEL.md) describe el nuevo dato opcional de Candle.
+
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
 Live ≠ estrategia independiente.
@@ -98,7 +119,7 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 - `models`: valores, enums, IDs y snapshots inmutables sin dependencias de proveedores.
 - `config`: configuración inmutable, leída del entorno y validada explícitamente.
 - `market_data`: futura provisión de datos; no toma decisiones ni ejecuta órdenes.
-- `strategy`: contratos y matemáticas puras de Alternativa B; el núcleo de decisión
+- `strategy`: contratos, matemáticas y evaluación pura de entrada de Alternativa B; el núcleo de decisión
   concreto sigue pendiente. `signals` sigue reservado. Sin llamadas a Binance,
   Telegram, persistencia o adaptadores específicos de un modo.
 - `risk`: futura validación de intenciones antes de ejecutar.
@@ -126,7 +147,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 3B-1A solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 3B-1B solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
@@ -134,5 +155,6 @@ ni secretos. Los errores se propagan; no se sustituyen por resultados ficticios.
 
 Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes de
 implementaciones futuras siguen reservados; solo está implementada la matemática
-pura de sizing, DCA, promedio y TP. No hay decisiones de trading, filtros, vetos,
-órdenes DCA/TP, replay funcional, Shadow, Live, Add Margin ni Telegram.
+pura de sizing, DCA, promedio y TP, y la evaluación de filtros/vetos de entrada.
+No hay motor concreto, señales, órdenes DCA/TP, replay funcional, Shadow, Live,
+Add Margin ni Telegram.

@@ -6,11 +6,13 @@ implementación que lo contradiga constituye una regresión, salvo cambio aproba
 de esta especificación. Esta fase no implementa estrategia, ejecución ni las
 correcciones arquitectónicas indicadas al final.
 
-Implementación actual: **Fase 3B-1A**. La configuración canónica y la capa matemática
+Implementación matemática: **Fase 3B-1A**. La configuración canónica y la capa matemática
 pura de sizing (pesos, márgenes y nocionales), desviaciones/precios teóricos DCA,
 promedio ponderado de fills y TP teórico están implementadas y testeadas en
 `strategy/alt_b`. Las fórmulas y parámetros de esta especificación se conservan.
-El motor concreto, filtros, vetos, señales y ejecución de órdenes siguen pendientes.
+**Fase 3B-1B** implementa la evaluación pura de los filtros y vetos de entrada,
+agregación 1m→15m y RV con taker-buy real. El motor concreto, señales, acciones y
+ejecución de órdenes siguen pendientes. `EntryEvaluation` no emite una señal.
 
 ## 1. Identidad y alcance
 
@@ -149,6 +151,20 @@ No fabricar ni interpolar OHLC. Se requieren como mínimo **26 horas completas**
 de warmup, además de todas las referencias válidas de los filtros y vetos.
 El tiempo transcurrido por sí solo no valida un historial incompleto.
 
+Contrato implementado en 3B-1B: intervalos UTC semiabiertos
+`[open_time, close_time)`; aperturas al minuto exacto y cierre un minuto después.
+`aggregate_15m_block` exige una tuple de exactamente 15 Candle del mismo Symbol,
+ordenadas y consecutivas desde 00/15/30/45; rechaza duplicados y gaps sin repararlos.
+Suma `taker_buy_base_volume` únicamente si los 15 minutos lo contienen; si falta
+uno, el agregado conserva None. None representa ausencia, no volumen cero.
+
+`evaluate_entry_checkpoint(candles_1m, checkpoint_at, config)` exige checkpoint
+UTC aware alineado a 15m y una tuple de Candle. Rechaza con ValueError toda vela
+que cierre después del checkpoint. Consume únicamente los 1560 minutos que
+terminan exactamente allí; puede recibir historia anterior que no participa
+en las fórmulas. Un símbolo diferente del configurado es error de input.
+No ordena, interpola, busca datos futuros ni normaliza timestamps del proveedor.
+
 En las fórmulas siguientes, `i` es el bloque 15m recién cerrado; `C`, `H` y `L`
 indexados son cierre, máximo y mínimo 15m. Los intervalos de índices incluyen
 ambos extremos. Todas las referencias usan únicamente datos ya cerrados al
@@ -227,6 +243,46 @@ Si cualquier referencia requerida es inválida, inexistente o cero, el resultado
 es **NO SIGNAL**. Esto incluye las medianas de referencia, RVref24h y los
 denominadores requeridos. Datos taker buy faltantes no se sustituyen por un
 proxy. No interpretar un veto incalculable como un veto desactivado.
+
+### Evaluación pura y fail-closed — Fase 3B-1B
+
+`EntryEvaluation` es un resultado frozen con checkpoint, data_valid, entry_allowed,
+reason, todas las métricas anteriores, tres flags PASS y veto_a/veto_b. Para datos
+válidos, entry_allowed es únicamente la conjunción de los tres PASS y ausencia
+de ambos vetos. La capa no evalúa rondas ni entradas pendientes.
+
+Todas las operaciones estadísticas/financieras usan Decimal a 50 dígitos con
+contexto local independiente del llamador. La mediana par promedia los dos
+centrales. RV usa `.ln()` y `.sqrt()` Decimal, 30 retornos/31 cierres, ddof=0;
+solo se toma snapshot en cierre 15m. No anualiza ni utiliza retornos simples.
+Taker-buy se exige únicamente en los 15 minutos actuales, donde se consume;
+BuyRatioReal=0 es válido. Las medianas y RVref24h requieren referencia positiva.
+
+Los errores de tipos/checkpoint/config y las velas futuras producen
+TypeError/ValueError. Los problemas normales de calidad producen data_valid=False,
+entry_allowed=False y métricas/flags no calculados en None. Razones estables:
+
+| Razón | Condición |
+| --- | --- |
+| `insufficient_history` | Historia vacía o no alcanza el inicio del warmup de 26h. |
+| `checkpoint_not_available` | Ninguna vela cierra exactamente en checkpoint. |
+| `missing_or_nonconsecutive_minute` | Ventana incompleta, duplicada, desordenada, desalineada, de duración incorrecta o símbolos mezclados. |
+| `missing_current_taker_buy` | Falta el dato real en algún minuto actual. |
+| `zero_current_volume` | Volumen agregado actual cero. |
+| `zero_med_vol_4h` | Mediana de los 16 bloques anteriores cero. |
+| `zero_med_vol_24h` | Mediana de los 96 bloques anteriores cero. |
+| `rv_snapshot_unavailable` | No puede obtenerse un snapshot requerido de 31 cierres consecutivos. |
+| `zero_rv_ref_24h` | Mediana de los 96 snapshots anteriores cero. |
+
+Precedencia: errores de input/futuros, historia vacía, disponibilidad del
+checkpoint, alcance del warmup, continuidad, símbolo configurado, taker-buy
+actual, volumen actual, medianas 4h/24h, snapshots RV y referencia RV. La validación
+de continuidad de toda la ventana detecta antes los minutos que también impedirían
+un snapshot. No se interpreta ningún dato inválido como veto False.
+
+Para datos válidos, reason es `veto_a` si está activo, después `veto_b` si está
+activo, `entry_allowed` si se permite entrada o `filters_failed` en otro caso.
+Estos códigos solo describen el resultado puro, sin generar IDs, señales u órdenes.
 
 ## 10. Permiso de entrada
 
