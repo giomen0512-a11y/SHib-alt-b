@@ -13,6 +13,8 @@ promedio ponderado de fills y TP teórico están implementadas y testeadas en
 **Fase 3B-1B** implementa la evaluación pura de los filtros y vetos de entrada,
 agregación 1m→15m y RV con taker-buy real. El motor concreto, señales, acciones y
 ejecución de órdenes siguen pendientes. `EntryEvaluation` no emite una señal.
+**Fase 3B-2A** añade la ingesta incremental con historial explícito e inmutable;
+reutiliza esa evaluación sin cambiar fórmulas ni parámetros.
 
 ## 1. Identidad y alcance
 
@@ -164,6 +166,35 @@ que cierre después del checkpoint. Consume únicamente los 1560 minutos que
 terminan exactamente allí; puede recibir historia anterior que no participa
 en las fórmulas. Un símbolo diferente del configurado es error de input.
 No ordena, interpola, busca datos futuros ni normaliza timestamps del proveedor.
+
+### Ingesta incremental — Fase 3B-2A
+
+`AltBMarketState` guarda solo una tuple de hasta AltBConfig.warmup_minutes velas
+normalizadas del mismo símbolo, ordenadas, sin duplicados ni gaps. El límite
+canónico es 1560; cada incorporación expulsa el exceso más antiguo.
+`ingest_closed_1m(state, candle, config)` es puro y retorna `AltBMarketStep` frozen
+con estado, evaluación opcional y resultado `accepted`, `duplicate` o `gap_reset`.
+
+El evento es una vela cerrada entregada por el llamador, sin consultar reloj.
+La primera inicia historial; cada siguiente debe empezar al cierre de la anterior.
+Reenviar la última vela idéntica conserva el estado y no evalúa otra vez. El mismo
+intervalo con contenido diferente o una vela anterior produce ValueError; no
+sobrescribe historia. Un gap hacia adelante descarta el historial anterior e
+inicia uno con la nueva vela, reiniciando también el warmup; no inventa minutos.
+Taker-buy se conserva literalmente, incluido None.
+
+Solo en cierre UTC 00/15/30/45 de un evento incorporado se llama exactamente una
+vez a evaluate_entry_checkpoint sobre el nuevo historial causal. Fuera de esos
+cierres o ante duplicado, evaluation=None. Antes de 26h se conserva la evaluación
+fail-closed de 3B-1B. La secuencia incremental de 27h se prueba contra evaluación
+directa del prefijo completo en cada checkpoint, con igualdad exacta.
+
+El estado puede reconstruirse desde velas validadas; no se implementa persistencia
+ni serialización. Un futuro runner deberá conservar historial, cursor de última
+vela, estado de estrategia/ronda y acciones/órdenes pendientes. La transferencia
+explícita de estado a través del motor por eventos sigue pendiente; no se cambia
+StrategyEngine, StrategyResult ni StrategyCoordinator ni se acopla estado financiero
+a CoordinatorState. No hay señales, órdenes ni garantía de una orden por evento.
 
 En las fórmulas siguientes, `i` es el bloque 15m recién cerrado; `C`, `H` y `L`
 indexados son cierre, máximo y mínimo 15m. Los intervalos de índices incluyen

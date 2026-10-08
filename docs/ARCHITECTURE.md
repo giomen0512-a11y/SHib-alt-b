@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-1B
+# Arquitectura mínima — Fase 3B-2A
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -104,6 +104,47 @@ entry_allowed=False y una razón estable, con métricas/flags no calculados en N
 Consulta [Alternativa B](STRATEGY_ALT_B.md) para razones, precedencia y fórmulas;
 [modelos](DOMAIN_MODEL.md) describe el nuevo dato opcional de Candle.
 
+Fase 3B-2A añade `strategy/alt_b/state_market.py`: la transición pura
+`ingest_closed_1m(state, candle, config) → AltBMarketStep` devuelve un nuevo
+`AltBMarketState`, EntryEvaluation opcional y MarketIngestResult. El estado frozen
+almacena únicamente `candles_1m: tuple[Candle, ...]`, continuas, ordenadas y 1m UTC
+normalizadas de un solo símbolo. Su límite procede de AltBConfig.warmup_minutes,
+canónico y congelado en 1560 para cualquier configuración válida. No guarda
+derivados, cursor duplicado, caché RV ni estado oculto mutable.
+
+El llamador suministra cada evento ya cerrado; la transición no consulta reloj,
+no añade is_closed y no normaliza timestamps del proveedor. Valida símbolo contra
+config y acepta la siguiente vela solo si empieza donde termina la anterior.
+El último intervalo idéntico retorna `duplicate`, el mismo estado y evaluación
+None; el mismo intervalo con contenido distinto o cualquier vela anterior produce
+ValueError. Un salto hacia adelante retorna `gap_reset` con únicamente la nueva
+vela, sin fabricar minutos: vuelve a exigir el warmup completo. Los demás eventos
+válidos retornan `accepted` y conservan las últimas warmup_minutes velas.
+
+Cada cierre UTC 00/15/30/45 aceptado (incluido tras gap) llama exactamente una vez
+al evaluador aprobado de 3B-1B con el historial causal del nuevo estado; antes de
+26h conserva su resultado fail-closed. Fuera de checkpoint devuelve evaluación
+None. Candle y taker-buy, incluido None, se conservan sin modificaciones.
+La prueba de equivalencia cubre todos los checkpoints de una secuencia de 27h
+frente al historial causal completo; no cambian fórmulas ni parámetros.
+
+## Estado explícito pendiente para la siguiente fase
+
+StrategyEngine por eventos no recibe AltBMarketState y StrategyResult no devuelve
+estado de estrategia. Antes de Signal, ScheduledAction y Base debe definirse una
+transferencia explícita de estado que preserve pureza, determinismo, persistencia
+futura y recovery, manteniendo separado StrategyCoordinator genérico del estado
+financiero de Alternativa B. No se incorpora AltBMarketState en CoordinatorState
+ni se modifica ninguno de esos contratos en 3B-2A.
+
+Un snapshot inmutable podrá guardarse y restaurarse posteriormente; esta fase no
+implementa persistencia ni serialización. El futuro runner deberá conservar
+historial validado, cursor de última vela, estado lógico de estrategia/ronda y
+acciones/órdenes pendientes. Una repetición del último minuto no reevalúa; los
+minutos anteriores al cursor requieren recovery/backfill explícito, sin corrección
+implícita. No hay estado de rondas, deduplicación de fills, cancel/replace de TP
+ni garantía de exactamente una orden por evento.
+
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
 Live ≠ estrategia independiente.
@@ -147,7 +188,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 3B-1B solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 3B-2A solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
@@ -155,6 +196,7 @@ ni secretos. Los errores se propagan; no se sustituyen por resultados ficticios.
 
 Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes de
 implementaciones futuras siguen reservados; solo está implementada la matemática
-pura de sizing, DCA, promedio y TP, y la evaluación de filtros/vetos de entrada.
+pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
+la ingesta incremental con estado de mercado explícito.
 No hay motor concreto, señales, órdenes DCA/TP, replay funcional, Shadow, Live,
 Add Margin ni Telegram.

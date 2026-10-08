@@ -1,6 +1,6 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-1B — filtros y vetos de entrada de Alternativa B**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-2A — ingesta incremental y estado reproducible de Alternativa B**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
 Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
@@ -9,6 +9,9 @@ y precios DCA, promedio de fills y TP teórico; sin un StrategyEngine concreto.
 La evaluación pura de entrada agrega minutos UTC a bloques 15m y calcula filtros,
 vetos A/B y RV poblacional con taker-buy real. Devuelve `EntryEvaluation`;
 datos insuficientes bloquean la entrada y las velas futuras se rechazan.
+`ingest_closed_1m` recibe y devuelve estado explícito frozen, conserva hasta 1560
+minutos y evalúa solo cierres 15m. Un duplicado idéntico no reevalúa; un gap reinicia
+el historial y el warmup. Sin persistencia ni integración con StrategyEngine todavía.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
 
@@ -60,7 +63,8 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 - `market_data`, `strategy`, `risk`, `execution`: Protocols mínimos del motor.
 - `strategy/alt_b`: configuración canónica y matemáticas Decimal de Alternativa B,
   agregación 15m y evaluación causal de entrada con 1560 minutos de warmup,
-  precisión local fija de 50 dígitos; sin señales, redondeo de exchange ni ejecución.
+  ingesta incremental y estado explícito inmutable, precisión local fija de 50
+  dígitos; sin señales, redondeo de exchange ni ejecución.
 - `orchestration`: estado inmutable, coordinación por eventos y acciones elegibles por tiempo explícito;
   no ejecuta órdenes ni utiliza reloj interno.
 - `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.

@@ -12,6 +12,7 @@ def test_pure_math_package_only_depends_on_standard_library_config_and_required_
         "math.py",
         "market.py",
         "entry.py",
+        "state_market.py",
     }
     allowed = {
         "trading_engine.strategy.alt_b.config": {"AltBConfig"},
@@ -23,6 +24,7 @@ def test_pure_math_package_only_depends_on_standard_library_config_and_required_
         },
         "trading_engine.models.market": {"Candle"},
         "trading_engine.strategy.alt_b.math": {"_context"},
+        "trading_engine.strategy.alt_b.entry": {"EntryEvaluation", "evaluate_entry_checkpoint"},
         "trading_engine.strategy.alt_b.market": {
             "_consecutive_minutes",
             "_validate_candles",
