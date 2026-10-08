@@ -138,12 +138,14 @@ de ejecución. El llamador gestiona la secuencia y conserva el estado.
 Riesgo y ejecución siguen siendo pasos posteriores separados. No se implementan
 estrategia financiera, Alternativa B ni modos operativos; runtime sigue STOPPED.
 
-## Política de IDs pendiente
+## Política de identidad — Fase 2.2
 
 ScheduledAction, Signal, OrderIntent y Round requieren IDs explícitos al
-construirse; StrategyCoordinator no los genera. Fase 2.1 todavía no define cómo
-una estrategia concreta asignará IDs a sus nuevos outputs. Antes de implementar
-Alternativa B, Fase 3B deberá definir una política determinista e idempotente
-compatible con Replay, Shadow, Live y recovery. No se permitirá generación
-aleatoria implícita. Esta corrección documenta el pendiente sin diseñar ni
-implementar un generador.
+construirse; StrategyCoordinator y los modelos no los generan. La futura
+estrategia concreta seleccionará componentes explícitos y usará las funciones
+puras UUIDv5 de models/identity.py, con namespace fijo
+`22842300-09df-530e-93ea-1e985518f6d1`, schema v1 y JSON canónico. Mismo hecho
+y mismo estado lógico deben reconstruir los mismos IDs en Replay, Shadow, Live
+y recovery. Reprocesar o reintentar no incrementa revision. OrderId/FillId quedan
+fuera de esta capa. Consulta [IDENTITY.md](IDENTITY.md); no se implementan
+persistencia, generación aleatoria ni selección financiera de componentes.

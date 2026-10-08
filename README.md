@@ -1,8 +1,9 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 2.1 — arquitectura de eventos**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 2.2 — identidad determinista e idempotente**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
+Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. No conecta con Binance ni requiere secretos.
 
@@ -63,5 +64,6 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 Lee [AGENTS.md](AGENTS.md) antes de editar, [arquitectura](docs/ARCHITECTURE.md)
 y [modelos de dominio](docs/DOMAIN_MODEL.md) para conocer los contratos e invariantes.
 La [coordinación temporal](docs/ORCHESTRATION.md) explica ScheduledAction, pending/due y el flujo de Quote/Fill.
+La [identidad determinista](docs/IDENTITY.md) define namespace, schema v1 y helpers de IDs.
 La aplicación de producción no depende de Codex,
 ChatGPT ni OpenAI.

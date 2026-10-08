@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 2.1
+# Modelos de dominio — Fase 2.2
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -22,11 +22,14 @@ automáticamente. No se introduce Percentage/Ratio sin un uso especificado.
 Los IDs son nominalmente distintos para mypy. En runtime son UUID, no wrappers
 distintos; los modelos rechazan strings arbitrarios y exigen IDs explícitos al
 construir, sin generación automática. StrategyCoordinator no genera IDs.
-Fase 2.1 no define todavía la política de asignación para nuevos outputs de una
-estrategia concreta. Antes de implementar Alternativa B, Fase 3B deberá definir
-una política determinista e idempotente compatible con Replay, Shadow, Live y
-recovery. No se permitirá generación aleatoria implícita; no se implementa un
-generador en esta fase.
+`models/identity.py` ofrece make_signal_id, make_round_id, make_action_id y
+make_intent_id: funciones puras UUIDv5 con namespace fijo
+`22842300-09df-530e-93ea-1e985518f6d1`, schema v1 y JSON canónico. La futura
+estrategia concreta seleccionará componentes explícitos y usará esos helpers,
+compartidos por Replay, Shadow, Live y recovery. No se añade auto-ID a los modelos.
+OrderId/FillId quedan para ejecución/adaptadores posteriores. Revision no aumenta
+por reprocesamiento, retry o reinicio. El encoding exacto y los vectores congelados
+se especifican en [IDENTITY.md](IDENTITY.md).
 
 Side: BUY/SELL. PositionSide: LONG/SHORT (cantidad siempre positiva, sin Hedge Mode).
 OrderType: MARKET/LIMIT. OrderStatus: PENDING, OPEN, PARTIALLY_FILLED, FILLED,

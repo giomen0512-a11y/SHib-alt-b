@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 2.1
+# Arquitectura mínima — Fase 2.2
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -59,11 +59,13 @@ evaluar una acción. También rechaza ScheduledAction/OrderIntent nuevos con
 created_at anterior al evento causal; los tiempos de cada handler y el tratamiento
 de fills observados fuera de orden se detallan en ORCHESTRATION.md.
 
-Fase 2.1 no define la política de asignación de IDs para nuevos outputs de una
-estrategia concreta. StrategyCoordinator no genera IDs. Antes de implementar
-Alternativa B, Fase 3B deberá definir una política determinista e idempotente
-compatible con Replay, Shadow, Live y recovery, sin generación aleatoria implícita.
-No se diseña ni implementa esa política en esta fase.
+Fase 2.2 define la política de identidad en `models/identity.py`: funciones puras
+UUIDv5 con namespace fijo `22842300-09df-530e-93ea-1e985518f6d1`, schema v1 y
+componentes explícitos codificados como JSON canónico. La futura estrategia
+concreta elegirá los componentes y derivará SignalId, RoundId, ActionId e IntentId.
+StrategyCoordinator y los modelos no generan IDs. OrderId/FillId corresponden a
+la futura capa de ejecución/adaptador. Consulta [IDENTITY.md](IDENTITY.md) para
+encoding, revision e idempotencia; no hay generación aleatoria ni persistencia.
 
 Replay ≠ estrategia independiente.
 Shadow ≠ estrategia independiente.
@@ -106,7 +108,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 2.1 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 2.2 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
