@@ -310,3 +310,12 @@ performance; desactivada conserva resultados/huellas previos. Su estado frozen,
 journal y calendario pendiente sostienen reanudación offline en la misma sesión
 SQLite, valoración y disponibilidad por métrica. Capital/costos/Mark no se inventan.
 Véase [FINANCIAL_PERFORMANCE_SPEC.md](FINANCIAL_PERFORMANCE_SPEC.md). Runtime STOPPED.
+
+## Extensión offline opt-in: margen aislado (4A-4A)
+
+`replay/isolated_margin_risk` consume FinancialLedger y el contexto causal de
+FinancialPerformance/MarkPriceSource después del tick financiero del ReplayRunner.
+Produce evaluaciones e hipótesis, sin emitir órdenes ni transferencias. Conserva
+política, evidencia, journal y pendientes en ReplaySnapshot; sin activarlo se
+preservan las huellas anteriores. Contrato y límites en
+[ISOLATED_MARGIN_RISK_SPEC.md](ISOLATED_MARGIN_RISK_SPEC.md).

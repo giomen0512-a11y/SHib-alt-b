@@ -20,6 +20,9 @@ from trading_engine.replay.financial_performance.core import FinancialPerformanc
 from trading_engine.replay.financial_performance.evidence import FinancialEvent, MarkEvidence
 from trading_engine.replay.financial_performance.models import FinancialObservation
 from trading_engine.replay.history import SQLiteHistory
+from trading_engine.replay.isolated_margin_risk.core import IsolatedMarginRisk
+from trading_engine.replay.isolated_margin_risk.evidence import RiskEvent
+from trading_engine.replay.isolated_margin_risk.models import RiskObservation
 from trading_engine.replay.models import (
     InvalidPeriod,
     ReplayEmission,
@@ -61,6 +64,7 @@ class ReplayRunner:
         simulator: SimulatedExecution | None = None,
         ledger: FinancialLedger | None = None,
         performance: FinancialPerformance | None = None,
+        risk: IsolatedMarginRisk | None = None,
     ) -> None:
         config = AltBConfig() if config is None else config
         quotes = NoQuotes() if quotes is None else quotes
@@ -71,8 +75,25 @@ class ReplayRunner:
         self.simulator = simulator
         self.ledger = ledger
         self.performance = performance
+        self.risk = risk
         if performance is not None and ledger is None:
             raise ValueError("Performance opt-in requiere FinancialLedger explícito")
+        if risk is not None and performance is None:
+            raise ValueError("Riesgo opt-in requiere FinancialPerformance explícito")
+        self._risk_events = (
+            ()
+            if risk is None
+            else tuple(
+                sorted(
+                    risk.source.read(0, request.end),
+                    key=lambda e: (e.stamp.received_at, e.stamp.sequence),
+                )
+            )
+        )
+        if len({e.stamp.sequence for e in self._risk_events}) != len(self._risk_events):
+            raise ValueError("Fuente de riesgo repite secuencia")
+        if any(not request.start <= e.stamp.received_at <= request.end for e in self._risk_events):
+            raise ValueError("Fuente de riesgo fuera de intervalo/límite de lectura")
         self._financial_events = (
             ()
             if performance is None
@@ -132,6 +153,10 @@ class ReplayRunner:
             else performance.initial(request.start, request.end),
             performance_cursor=None if performance is None else 0,
             performance_pending=None if performance is None else self._financial_events,
+            risk_identity=None if risk is None else risk.identity,
+            risk=None if risk is None else risk.initial(request.start, request.end),
+            risk_cursor=None if risk is None else 0,
+            risk_pending=None if risk is None else self._risk_events,
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -145,6 +170,7 @@ class ReplayRunner:
                 snapshot.simulation_identity,
                 snapshot.ledger_identity,
                 snapshot.performance_identity,
+                snapshot.risk_identity,
             ) != (
                 request,
                 config,
@@ -155,6 +181,7 @@ class ReplayRunner:
                 None if simulator is None else simulator.identity,
                 None if ledger is None else ledger.identity,
                 None if performance is None else performance.identity,
+                None if risk is None else risk.identity,
             ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
@@ -170,6 +197,8 @@ class ReplayRunner:
                 self._record("financial_ledger", ledger.identity)
             if performance is not None:
                 self._record("financial_performance", performance.identity)
+            if risk is not None:
+                self._record("isolated_margin_risk", risk.identity)
             conflicts = history.conflicts(config.symbol)
             if conflicts:
                 self._snapshot = replace(
@@ -244,6 +273,42 @@ class ReplayRunner:
             v is not None for v in (s.performance, s.performance_cursor, s.performance_pending)
         ):
             raise ValueError("Snapshot ampliado requiere componente performance")
+        if self.risk is not None:
+            if s.risk is None or s.risk_cursor is None or s.performance is None:
+                raise ValueError("Snapshot perdió estado de riesgo")
+            if type(s.risk_cursor) is not int or not 0 <= s.risk_cursor <= len(self._risk_events):
+                raise ValueError("Cursor de riesgo inválido")
+            if s.risk_pending != self._risk_events[s.risk_cursor :]:
+                raise ValueError("Snapshot perdió evidencia de riesgo pendiente")
+            delivered_risk = self._risk_events[: s.risk_cursor]
+            if any(e.stamp.received_at > s.clock.now for e in delivered_risk):
+                raise ValueError("Cursor de riesgo anticipó eventos futuros")
+            if s.interruption is None and any(
+                e.stamp.received_at <= s.clock.now for e in s.risk_pending
+            ):
+                raise ValueError("Snapshot perdió entregas de riesgo vencidas")
+            accepted_risk: list[RiskEvent] = []
+            for event_risk in delivered_risk:
+                if not any(e.stamp.event_id == event_risk.stamp.event_id for e in accepted_risk):
+                    accepted_risk.append(event_risk)
+            if not s.risk.conflicts and tuple(accepted_risk) != s.risk.events:
+                raise ValueError("Cursor de riesgo no coincide con eventos reconocidos")
+            assert self.performance is not None
+            if s.activated:
+                processed_risk = self.risk.validate(
+                    s.risk, s.clock.now, self.performance, s.performance
+                )
+                if processed_risk != s.risk_cursor:
+                    raise ValueError("Cursor de riesgo adulterado; reconstrucción distinta")
+                # El contexto final debe consumir todo el prefijo financiero disponible.
+                if not s.risk.conflicts and s.risk.context != self.risk.context_from(
+                    self.performance, s.performance, s.risk.last_at or s.request.start
+                ):
+                    raise ValueError("Riesgo perdió su última transición financiera")
+            elif s.risk != self.risk.initial(s.request.start, s.request.end):
+                raise ValueError("Riesgo alterado antes de activación")
+        elif any(v is not None for v in (s.risk, s.risk_cursor, s.risk_pending)):
+            raise ValueError("Snapshot de riesgo requiere componente explícito")
         state = s.coordinator.strategy_state
         if state is not None:
             if not isinstance(state, AltBStrategyState):
@@ -393,6 +458,33 @@ class ReplayRunner:
             self._simulation_update(state)
             for fact in facts:
                 self._fact(fact, simulated=True)
+
+    def _risk_tick(self) -> None:
+        if self.risk is None or not self._snapshot.activated:
+            return
+        s = self._snapshot
+        assert self.performance is not None and s.performance is not None and s.risk is not None
+        assert s.risk_cursor is not None and s.risk_pending is not None
+        state = self.risk.observe(
+            s.risk,
+            RiskObservation(
+                s.clock.now, self.risk.context_from(self.performance, s.performance, s.clock.now)
+            ),
+        )
+        cursor, pending = s.risk_cursor, s.risk_pending
+        while pending and pending[0].stamp.received_at == s.clock.now and not state.conflicts:
+            state = self.risk.observe(state, RiskObservation(s.clock.now, pending[0]))
+            cursor += 1
+            pending = pending[1:]
+        if not state.conflicts:
+            state = self.risk.observe(state, RiskObservation(s.clock.now, "VALUE"))
+        if state != s.risk:
+            self._record("risk_transition", (state.journal[len(s.risk.journal) :], state.conflicts))
+        self._snapshot = replace(
+            self._snapshot, risk=state, risk_cursor=cursor, risk_pending=pending
+        )
+        if state.conflicts:
+            raise ValueError("isolated_margin_risk:" + state.conflicts[0].reason)
 
     def _activate(self) -> None:
         s = self._snapshot
@@ -584,6 +676,8 @@ class ReplayRunner:
                         candidates.append(next_execution)
                 if s.performance_pending:
                     candidates.append(s.performance_pending[0][1].received_at)
+                if s.risk_pending:
+                    candidates.append(s.risk_pending[0].stamp.received_at)
                 at = min(candidates)
                 if at > target:
                     break
@@ -606,6 +700,7 @@ class ReplayRunner:
                 self._due()
                 self._simulation_due()
                 self._financial_tick()
+                self._risk_tick()
             self._snapshot = replace(self._snapshot, clock=self._snapshot.clock.advance(target))
         except (ValueError, TypeError, SQLiteError) as exc:
             if (
@@ -614,6 +709,7 @@ class ReplayRunner:
                 and not (
                     self._snapshot.performance is not None and self._snapshot.performance.conflicts
                 )
+                and not (self._snapshot.risk is not None and self._snapshot.risk.conflicts)
             ):
                 state = self.ledger.block(
                     self._snapshot.ledger,
@@ -638,6 +734,13 @@ class ReplayRunner:
                 if state_performance != self._snapshot.performance:
                     self._record("performance_conflict", state_performance.conflicts)
                     self._snapshot = replace(self._snapshot, performance=state_performance)
+            if self.risk is not None and self._snapshot.activated:
+                # Propagar interrupciones financieras sin alterar el prefijo válido.
+                try:
+                    self._risk_tick()
+                except (ValueError, TypeError):
+                    if self._snapshot.risk is None or not self._snapshot.risk.conflicts:
+                        raise
             if (
                 self.simulator is not None
                 and self._snapshot.simulation is not None
@@ -645,6 +748,7 @@ class ReplayRunner:
                 and not (
                     self._snapshot.performance is not None and self._snapshot.performance.conflicts
                 )
+                and not (self._snapshot.risk is not None and self._snapshot.risk.conflicts)
             ):
                 self._simulation_update(
                     self.simulator.conflict(
@@ -703,6 +807,15 @@ class ReplayRunner:
             financial_performance=None
             if self.performance is None or s.performance is None or s.performance.ledger is None
             else self.performance.report(s.performance, s.clock.now),
+            isolated_margin_risk=None
+            if self.risk is None or s.risk is None or not s.activated
+            else self.risk.report(
+                s.risk,
+                s.clock.now,
+                None
+                if self.performance is None or s.performance is None or s.performance.ledger is None
+                else self.risk.context_from(self.performance, s.performance, s.clock.now),
+            ),
             execution_identity=s.execution_identity,
             price_evidence=s.price_evidence,
             modeled_intents=sum(

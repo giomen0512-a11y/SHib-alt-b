@@ -15,6 +15,8 @@ from trading_engine.replay.encoding import canonical, encoded
 from trading_engine.replay.financial_ledger.models import LedgerReport, LedgerState
 from trading_engine.replay.financial_performance.evidence import FinancialEvent
 from trading_engine.replay.financial_performance.models import PerformanceReport, PerformanceState
+from trading_engine.replay.isolated_margin_risk.evidence import RiskEvent
+from trading_engine.replay.isolated_margin_risk.models import RiskReport, RiskState
 from trading_engine.replay.ports import QuoteEvidence
 from trading_engine.replay.simulated_execution.state import ExecutionMetrics, ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
@@ -103,6 +105,12 @@ class ReplaySnapshot:
     performance_pending: tuple[tuple[str, FinancialEvent], ...] | None = field(
         default=None, metadata={"omit_if_none": True}
     )
+    risk_identity: str | None = field(default=None, metadata={"omit_if_none": True})
+    risk: RiskState | None = field(default=None, metadata={"omit_if_none": True})
+    risk_cursor: int | None = field(default=None, metadata={"omit_if_none": True})
+    risk_pending: tuple[RiskEvent, ...] | None = field(
+        default=None, metadata={"omit_if_none": True}
+    )
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
@@ -147,6 +155,7 @@ class ReplayReport:
     financial_performance: PerformanceReport | None = field(
         default=None, metadata={"omit_if_none": True}
     )
+    isolated_margin_risk: RiskReport | None = field(default=None, metadata={"omit_if_none": True})
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)

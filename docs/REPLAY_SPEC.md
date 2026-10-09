@@ -255,3 +255,13 @@ pendiente, nunca reconocido antes de received_at. Snapshot valida journal, serie
 coverage y cursores con misma sesión/fuentes/política; reporte separa disponibilidades.
 Sin datos suficientes, costos/neto/wallet/equity se conservan NOT_AVAILABLE.
 Véase [FINANCIAL_PERFORMANCE_SPEC.md](FINANCIAL_PERFORMANCE_SPEC.md).
+
+## Extensión opt-in de riesgo aislado (4A-4A)
+
+ReplayRunner admite `risk=None`; activarlo requiere ledger y performance explícitos.
+Después de la valoración financiera, reconoce eventos de margen/brackets por
+disponibilidad y evalúa riesgo con el mismo reloj. Sus snapshots restauran desde
+el journal financiero y RiskSource originales, incluyendo ajustes pendientes.
+No hay liquidación, Add Margin ni cambios a estrategia/ejecución; una condición
+de mantenimiento no certifica supervivencia intraminuto. Véase
+[ISOLATED_MARGIN_RISK_SPEC.md](ISOLATED_MARGIN_RISK_SPEC.md).
