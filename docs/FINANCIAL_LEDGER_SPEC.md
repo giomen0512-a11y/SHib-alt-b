@@ -223,3 +223,11 @@ ledger de cash/saldos y capital, mark causal, contabilidad de costos/neto,
 equity/drawdown y reglas de conciliación para evidencia externa tardía. Margen,
 liquidación/Add Margin y LIVE requieren contratos/validación independientes.
 No se habilita LIVE ni se descarga histórico para completar esta fase.
+
+## Extensión opt-in — Fase 4A-3B
+
+FinancialLedger y sus contratos permanecen intactos. Un componente independiente
+`FinancialPerformance` consume su estado confirmado y evidencia offline de costos,
+funding, capital, transferencias y Mark; publica métricas por disponibilidad sin
+alterar el informe bruto ni fingerprints cuando está desactivado. Véase
+[FINANCIAL_PERFORMANCE_SPEC.md](FINANCIAL_PERFORMANCE_SPEC.md).

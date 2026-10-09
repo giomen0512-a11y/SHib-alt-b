@@ -13,6 +13,8 @@ from trading_engine.orchestration.models import CoordinatorState
 from trading_engine.replay.clock import SimulatedClock
 from trading_engine.replay.encoding import canonical, encoded
 from trading_engine.replay.financial_ledger.models import LedgerReport, LedgerState
+from trading_engine.replay.financial_performance.evidence import FinancialEvent
+from trading_engine.replay.financial_performance.models import PerformanceReport, PerformanceState
 from trading_engine.replay.ports import QuoteEvidence
 from trading_engine.replay.simulated_execution.state import ExecutionMetrics, ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
@@ -95,6 +97,12 @@ class ReplaySnapshot:
     simulation: ExecutionState | None = None
     ledger_identity: str | None = field(default=None, metadata={"omit_if_none": True})
     ledger: LedgerState | None = field(default=None, metadata={"omit_if_none": True})
+    performance_identity: str | None = field(default=None, metadata={"omit_if_none": True})
+    performance: PerformanceState | None = field(default=None, metadata={"omit_if_none": True})
+    performance_cursor: int | None = field(default=None, metadata={"omit_if_none": True})
+    performance_pending: tuple[tuple[str, FinancialEvent], ...] | None = field(
+        default=None, metadata={"omit_if_none": True}
+    )
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
@@ -136,6 +144,9 @@ class ReplayReport:
     simulation: ExecutionState | None = None
     execution_metrics: ExecutionMetrics | None = None
     financial_ledger: LedgerReport | None = field(default=None, metadata={"omit_if_none": True})
+    financial_performance: PerformanceReport | None = field(
+        default=None, metadata={"omit_if_none": True}
+    )
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)

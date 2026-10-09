@@ -244,3 +244,14 @@ contable cero. Continuo/fragmentado incluye el ledger y la huella.
 Con contabilidad válida: PNL_BRUTO_REALIZADO_DISPONIBLE; con conflicto:
 PNL_BRUTO_REALIZADO_BLOQUEADO. Neto, unrealized, equity, drawdown, fees, funding,
 liquidación y margen no disponibles. Véase [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md).
+
+## Costos y valoración opt-in — Fase 4A-3B
+
+`performance=None` conserva fingerprints/JSON anteriores, incluido ledger 4A-3A
+activo. Activar FinancialPerformance exige ledger explícito y fuentes financieras
+/Mark offline. El runner entrega eventos financieros después del orden causal
+anterior y valora una sola vez por timestamp procesado. Calendario futuro queda
+pendiente, nunca reconocido antes de received_at. Snapshot valida journal, series,
+coverage y cursores con misma sesión/fuentes/política; reporte separa disponibilidades.
+Sin datos suficientes, costos/neto/wallet/equity se conservan NOT_AVAILABLE.
+Véase [FINANCIAL_PERFORMANCE_SPEC.md](FINANCIAL_PERFORMANCE_SPEC.md).

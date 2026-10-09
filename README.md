@@ -119,3 +119,10 @@ de FillEvidence recibidos: cantidades, costo promedio móvil, PnL bruto por rond
 conciliación y reanudación. Las huellas anteriores se conservan sin ledger.
 Neto, fees/funding, equity/drawdown y liquidación siguen no disponibles.
 Runtime STOPPED; sin trading, servicios ni despliegue.
+
+Fase 4A-3B añade contabilidad offline **opt-in** de fees/funding, wallet, Mark,
+PnL flotante, equity y drawdown, condicionada a evidencia y cobertura explícitas.
+Sin esas fuentes, las métricas dependientes permanecen NOT_AVAILABLE. El ledger
+bruto y las huellas anteriores se conservan cuando está desactivada. Fixtures y
+escenarios no son resultados históricos certificados de Binance. Véase
+[FINANCIAL_PERFORMANCE_SPEC.md](docs/FINANCIAL_PERFORMANCE_SPEC.md).

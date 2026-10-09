@@ -300,3 +300,13 @@ conserva P0, DCA, TP y shortfill. Estado/journal financiero se incorporan al
 snapshot/huella solo en modo activo; modo anterior conserva fingerprints.
 No implementa neto, fees/funding, equity/drawdown, mark/margen ni LIVE.
 Véase [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md). Runtime STOPPED.
+
+## Contabilidad ampliada independiente — Fase 4A-3B
+
+`replay/financial_performance` reutiliza FinancialLedger sin cambios y mantiene
+fuentes separadas para fees/funding/flujos y Mark. No importa estrategia, matching,
+transporte, riesgo o margen. Activación explícita en ReplayRunner con ledger y
+performance; desactivada conserva resultados/huellas previos. Su estado frozen,
+journal y calendario pendiente sostienen reanudación offline en la misma sesión
+SQLite, valoración y disponibilidad por métrica. Capital/costos/Mark no se inventan.
+Véase [FINANCIAL_PERFORMANCE_SPEC.md](FINANCIAL_PERFORMANCE_SPEC.md). Runtime STOPPED.
