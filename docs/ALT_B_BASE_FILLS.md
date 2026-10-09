@@ -137,3 +137,11 @@ valores provisionales ni se habilita LIVE. DCA1–DCA7 y TP operativo no se impl
 la siguiente subfase recibirá la identidad de ronda, fills, cantidad efectiva y
 P0 conciliado. Add Margin, liquidación, funding, fees, Telegram y adaptadores de
 trading siguen fuera del alcance. Replay, Shadow y Live utilizarán el mismo motor.
+
+## Continuación implementada — Fase 3B-2C-2
+
+Las limitaciones de 3B-2C-1 anteriores describen esa entrega. Ahora Base confirmada
+inicia siete DCA teóricas y TP con el mismo AltBEngine. P0 solo procede de sus
+fills conciliados. La reserva se libera únicamente tras cierre neto cero con
+todas las órdenes terminales y conciliadas, conservando evidencia en historial.
+No se añade ejecución real: [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).

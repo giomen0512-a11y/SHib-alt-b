@@ -22,6 +22,10 @@ reutiliza esa evaluación sin cambiar fórmulas ni parámetros.
 Order/Fill, sin enviar órdenes. Conserva reserva y evidencia parcial, concilia
 cantidades y deriva VWAP/P0 únicamente de fills: [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
 
+**Fase 3B-2C-2** incorpora siete DCA teóricas, TP dinámico, cancelación/reemplazo
+por hechos explícitos y cierre conciliado: [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).
+No se cambian fórmulas ni se habilita ejecución real.
+
 ## 1. Identidad y alcance
 
 | Concepto | Valor canónico |

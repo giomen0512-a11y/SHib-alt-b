@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 3B-2C-1
+# Modelos de dominio — Fase 3B-2C-2
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -170,3 +170,22 @@ resuelta y conciliada, nunca Quote o cantidad solicitada. No fabrica Position ni
 Round financiera y no envía órdenes. La reserva no desaparece por PAUSE, retry,
 gap o entrega tardía. Cancel/reject parcial bloquea para reconciliación.
 Consultar [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md) para invariantes y límites.
+
+## Solicitudes de cancelación y gestión de ronda — Fase 3B-2C-2
+
+OrderCancelRequest contiene solo intent original y created_at UTC >=
+intent.created_at, es frozen y expone intent_id. No contiene OrderId generado
+ni afirma confirmación. StrategyResult y CoordinationResult añaden
+cancel_requests tuple vacía por defecto, validada sin duplicados. Emitir y
+cancelar la misma intención en un resultado se rechaza.
+
+AltBStrategyState incorpora AltBRoundState, round_history y base_cancel_request
+opcional. Siete OrderLeg DCA, cadena OrderLeg TP y solicitudes conservan órdenes,
+fills y bloqueos sin duplicar balances/posiciones. Cantidad abierta resta salidas
+efectivas a las entradas efectivas. P0, promedio y TP permanecen separados.
+Una confirmación Order terminal aporta cantidad final reportada; necesita Fill
+correspondientes completos antes de reemplazar o cerrar. El proveedor externo
+futuro debe demostrar esa finalidad; un timeout no la sustituye.
+RoundRecord conserva Base y gestión tras cierre, incluida config original.
+Hechos contradictorios tardíos convierten ese historial en RECONCILIATION.
+Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md) para campos, estados e invariantes.

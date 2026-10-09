@@ -1,4 +1,4 @@
-# Coordinación por eventos y acciones programadas — Fase 3B-2C-1
+# Coordinación por eventos y acciones programadas — Fase 3B-2C-2
 
 ```text
 Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
@@ -169,3 +169,14 @@ y recovery. Reprocesar o reintentar no incrementa revision. OrderId/FillId queda
 fuera de esta capa. Consulta [IDENTITY.md](IDENTITY.md); no se implementan
 persistencia ni generación aleatoria. Los componentes Alt B se detallan en
 ALT_B_SIGNALS.md y IDENTITY.md; los helpers genéricos no cambian.
+
+## Salida de cancelación — Fase 3B-2C-2
+
+StrategyResult.cancel_requests y CoordinationResult.cancel_requests son tuples
+frozen de OrderCancelRequest, vacías por defecto. La integración exige
+request.created_at >= event_time igual que los nuevos OrderIntent. Se exponen
+al llamador; no modifican automáticamente Order ni la cola ScheduledAction.
+Solicitar cancelar no confirma éxito. Los handlers on_order/on_fill existentes
+reciben terminalidad y evidencia; AltBEngine exige conciliación antes de sustituir
+TP o declarar CLOSED. No se añade un adaptador ni otro motor.
+Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).

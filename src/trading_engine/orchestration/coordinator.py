@@ -176,6 +176,9 @@ class StrategyCoordinator:
         for intent in result.order_intents:
             if intent.created_at < event_time:
                 raise ValueError("OrderIntent.created_at no puede ser anterior a event_time")
+        for request in result.cancel_requests:
+            if request.created_at < event_time:
+                raise ValueError("OrderCancelRequest.created_at no puede ser anterior a event_time")
         retained = tuple(
             a for a in state.pending_actions if a.action_id not in result.cancelled_action_ids
         )
@@ -184,7 +187,10 @@ class StrategyCoordinator:
             result.strategy_state if result.strategy_state is not None else state.strategy_state,
         )
         return CoordinationResult(
-            signals=result.signals, order_intents=result.order_intents, state=updated
+            signals=result.signals,
+            order_intents=result.order_intents,
+            state=updated,
+            cancel_requests=result.cancel_requests,
         )
 
     def advance_time(self, state: CoordinatorState, now: datetime) -> DueActionsResult:

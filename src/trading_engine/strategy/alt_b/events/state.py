@@ -8,9 +8,11 @@ from trading_engine.models._validation import require_type, utc_timestamp
 from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.decisions import StrategyState
 from trading_engine.models.identity import make_action_id, make_round_id, make_signal_id
+from trading_engine.models.orders import OrderCancelRequest
 from trading_engine.models.signals import Signal
 from trading_engine.strategy.alt_b.config import AltBConfig
 from trading_engine.strategy.alt_b.events.base import BaseState
+from trading_engine.strategy.alt_b.events.round_state import AltBRoundState, RoundRecord
 from trading_engine.strategy.alt_b.state_market import AltBMarketState
 
 SIGNAL_KIND: Final[str] = "ALT_B_LONG_ENTRY"
@@ -68,6 +70,9 @@ class AltBStrategyState(StrategyState):
     last_event_at: datetime | None = None
     block_reason: str | None = None
     base: BaseState | None = None
+    round_state: AltBRoundState | None = None
+    round_history: tuple[RoundRecord, ...] = ()
+    base_cancel_request: OrderCancelRequest | None = None
 
     def validate_pending_actions(self, actions: tuple[ScheduledAction, ...]) -> None:
         # Cola vacía también es válida tras advance_time: la reserva estratégica permanece.
@@ -79,6 +84,23 @@ class AltBStrategyState(StrategyState):
     def __post_init__(self) -> None:
         require_type(self.market, AltBMarketState, "market")
         require_type(self.allow_entries, bool, "allow_entries")
+        require_type(self.round_history, tuple, "round_history")
+        for record in self.round_history:
+            require_type(record, RoundRecord, "round_record")
+        if self.round_state is not None:
+            require_type(self.round_state, AltBRoundState, "round_state")
+            if self.base is None:
+                raise ValueError("Ronda sin Base")
+            self.round_state.validate_base(self.base)
+        if self.base_cancel_request is not None:
+            require_type(self.base_cancel_request, OrderCancelRequest, "base_cancel_request")
+            if self.base is None or self.base_cancel_request.intent != self.base.intent:
+                raise ValueError("Cancelación Base ajena")
+            if (
+                self.last_event_at is None
+                or self.base_cancel_request.created_at > self.last_event_at
+            ):
+                raise ValueError("Cancelación Base posterior al cursor causal")
         if self.last_event_at is not None:
             utc_timestamp(self.last_event_at, "last_event_at")
         if self.market.candles_1m:
@@ -122,3 +144,46 @@ class AltBStrategyState(StrategyState):
             )
             if self.last_event_at is None or any(t > self.last_event_at for t in observed_times):
                 raise ValueError("Base posterior al cursor causal")
+        all_fills = list(self.base.fills if self.base else ())
+        if self.round_state is not None:
+            all_fills += [f for leg in self.round_state.legs for f in leg.fills]
+        for record in self.round_history:
+            all_fills += list(record.round_state.entry_fills(record.base))
+            all_fills += list(record.round_state.exit_fills)
+        if len({f.fill_id for f in all_fills}) != len(all_fills):
+            raise ValueError("FillId duplicado entre rondas o niveles")
+        if any(self.last_event_at is None or f.timestamp > self.last_event_at for f in all_fills):
+            raise ValueError("Fill posterior al cursor causal")
+        rounds = [r.base.intent.round_id for r in self.round_history]
+        if self.base is not None:
+            rounds.append(self.base.intent.round_id)
+        if len(set(rounds)) != len(rounds):
+            raise ValueError("RoundId duplicado")
+        orders = [self.base.order] if self.base is not None and self.base.order is not None else []
+        orders += [
+            record.base.order for record in self.round_history if record.base.order is not None
+        ]
+        for management in (
+            *((self.round_state,) if self.round_state is not None else ()),
+            *(record.round_state for record in self.round_history),
+        ):
+            dates = (
+                management.opened_at,
+                management.closed_at,
+                *(r.created_at for r in management.cancel_requests),
+            )
+            if any(
+                t is not None and (self.last_event_at is None or t > self.last_event_at)
+                for t in dates
+            ):
+                raise ValueError("Ronda posterior al cursor causal")
+            for leg in management.legs:
+                times = (leg.intent.created_at, *((leg.order.updated_at,) if leg.order else ()))
+                if any(self.last_event_at is None or t > self.last_event_at for t in times):
+                    raise ValueError("Orden posterior al cursor causal")
+                if leg.order is not None:
+                    orders.append(leg.order)
+        if len({o.order_id for o in orders}) != len(orders):
+            raise ValueError("OrderId duplicado entre niveles o rondas")
+        if any(self.last_event_at is None or o.updated_at > self.last_event_at for o in orders):
+            raise ValueError("Orden posterior al cursor causal")

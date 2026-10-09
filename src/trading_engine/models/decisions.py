@@ -6,7 +6,7 @@ from uuid import UUID
 from trading_engine.models._validation import nonblank, require_type
 from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.ids import ActionId
-from trading_engine.models.orders import OrderIntent
+from trading_engine.models.orders import OrderCancelRequest, OrderIntent, validate_cancel_requests
 from trading_engine.models.signals import Signal
 
 
@@ -25,6 +25,7 @@ class StrategyResult:
     order_intents: tuple[OrderIntent, ...] = ()
     strategy_state: StrategyState | None = None
     cancelled_action_ids: tuple[ActionId, ...] = ()
+    cancel_requests: tuple[OrderCancelRequest, ...] = ()
 
     def __post_init__(self) -> None:
         require_type(self.signals, tuple, "signals")
@@ -36,6 +37,9 @@ class StrategyResult:
             require_type(action, ScheduledAction, "scheduled_action")
         for intent in self.order_intents:
             require_type(intent, OrderIntent, "order_intent")
+        validate_cancel_requests(self.cancel_requests)
+        if {i.intent_id for i in self.order_intents} & {r.intent_id for r in self.cancel_requests}:
+            raise ValueError("No se puede emitir y cancelar la misma intención")
         if self.strategy_state is not None:
             require_type(self.strategy_state, StrategyState, "strategy_state")
         require_type(self.cancelled_action_ids, tuple, "cancelled_action_ids")

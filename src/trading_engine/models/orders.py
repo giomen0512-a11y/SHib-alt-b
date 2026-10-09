@@ -44,6 +44,32 @@ class OrderIntent:
 
 
 @dataclass(frozen=True)
+class OrderCancelRequest:
+    """Solicitar cancelación por intención; no confirma cancelación ni crea OrderId."""
+
+    intent: OrderIntent
+    created_at: datetime
+
+    def __post_init__(self) -> None:
+        require_type(self.intent, OrderIntent, "intent")
+        utc_timestamp(self.created_at, "created_at")
+        if self.created_at < self.intent.created_at:
+            raise ValueError("Cancelación anterior a intención")
+
+    @property
+    def intent_id(self) -> IntentId:
+        return self.intent.intent_id
+
+
+def validate_cancel_requests(requests: tuple[OrderCancelRequest, ...]) -> None:
+    require_type(requests, tuple, "cancel_requests")
+    for request in requests:
+        require_type(request, OrderCancelRequest, "cancel_request")
+    if len({r.intent_id for r in requests}) != len(requests):
+        raise ValueError("Solicitud de cancelación duplicada")
+
+
+@dataclass(frozen=True)
 class Order:
     order_id: OrderId
     intent: OrderIntent

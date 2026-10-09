@@ -12,6 +12,14 @@ from trading_engine.models.market import Quote
 from trading_engine.models.orders import Fill, Order, OrderIntent
 from trading_engine.models.values import Price, Quantity
 from trading_engine.strategy.alt_b.config import AltBConfig
+from trading_engine.strategy.alt_b.events.execution_state import (
+    canonical_fills,
+    filled_quantity,
+    merge_fill,
+    merge_order,
+    validate_fill,
+    validate_order,
+)
 from trading_engine.strategy.alt_b.math import (
     _context,
     order_notionals,
@@ -78,39 +86,21 @@ class BaseState:
         require_type(self.fills, tuple, "fills")
         for fill in self.fills:
             self.validate_fill(fill)
-        if len({f.fill_id for f in self.fills}) != len(self.fills):
-            raise ValueError("FillId duplicado en snapshot")
-        object.__setattr__(self, "fills", tuple(sorted(self.fills, key=lambda f: f.fill_id.int)))
+        object.__setattr__(self, "fills", canonical_fills(self.fills))
         if self.reconciliation_reason is not None:
             nonblank(self.reconciliation_reason, "reconciliation_reason")
             if self.reconciliation_reason != "base_order_conflict":
                 raise ValueError("Razón de reconciliación no reconocida")
 
     def validate_order(self, order: Order) -> None:
-        require_type(order, Order, "order")
-        if order.intent != self.intent:
-            raise ValueError("Order no corresponde a intención, ronda o símbolo de Base")
-        if self.order is not None:
-            if order.order_id != self.order.order_id or order.created_at != self.order.created_at:
-                raise ValueError("Una Base no puede vincularse a otra Order")
-            if (
-                order.adapter_order_id is not None
-                and self.order.adapter_order_id is not None
-                and order.adapter_order_id != self.order.adapter_order_id
-            ):
-                raise ValueError("Identidad externa de Order conflictiva")
+        validate_order(self.intent, self.order, order)
 
     def validate_fill(self, fill: Fill) -> None:
-        require_type(fill, Fill, "fill")
-        if self.order is None or fill.order_id != self.order.order_id:
-            raise ValueError("Fill no corresponde a Order de Base")
-        if fill.timestamp < self.intent.created_at:
-            raise ValueError("Fill anterior a intención de Base")
+        validate_fill(self.intent, self.order, fill)
 
     @property
     def executed_quantity(self) -> Decimal:
-        with localcontext(_context()):
-            return sum((f.quantity.value for f in self.fills), Decimal("0"))
+        return filled_quantity(self.fills)
 
     @property
     def average_fill_price(self) -> Price | None:
@@ -166,43 +156,14 @@ class BaseState:
 def observe_order(base: BaseState, order: Order) -> BaseState:
     """Conservar el snapshot más reciente sin hacer rollback por entrega tardía."""
     base.validate_order(order)
-    previous = base.order
-    if previous is None:
-        return replace(base, order=order)
-    # La omisión en un snapshot no borra una identidad externa ya conocida.
-    adapter_id = previous.adapter_order_id or order.adapter_order_id
-    previous = replace(previous, adapter_order_id=adapter_id)
-    order = replace(order, adapter_order_id=adapter_id)
-    if order == previous:
-        return replace(base, order=previous)
-    if order.updated_at == previous.updated_at:
-        raise ValueError("Snapshots de Order conflictivos en el mismo instante")
-    older, newer = (
-        (order, previous) if order.updated_at < previous.updated_at else (previous, order)
-    )
-    conflict = (
-        newer.filled_quantity < older.filled_quantity
-        or (older.status in TERMINAL_STATUSES and newer.status != older.status)
-        or (older.status in TERMINAL_STATUSES and newer.filled_quantity != older.filled_quantity)
-        or (older.status is OrderStatus.OPEN and newer.status is OrderStatus.PENDING)
-        or (
-            older.status is OrderStatus.PARTIALLY_FILLED
-            and newer.status in (OrderStatus.PENDING, OrderStatus.OPEN)
-        )
-    )
+    order, conflict = merge_order(base.order, order)
     return replace(
         base,
-        order=newer,
+        order=order,
         reconciliation_reason="base_order_conflict" if conflict else base.reconciliation_reason,
     )
 
 
 def observe_fill(base: BaseState, fill: Fill) -> BaseState:
     base.validate_fill(fill)
-    for previous in base.fills:
-        if previous.fill_id == fill.fill_id:
-            if previous != fill:
-                raise ValueError("FillId repetido con contenido conflictivo")
-            return base
-    # Incluso un overfill conserva la evidencia y bloquea, no la descarta.
-    return replace(base, fills=base.fills + (fill,))
+    return replace(base, fills=merge_fill(base.fills, fill))

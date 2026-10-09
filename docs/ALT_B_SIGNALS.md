@@ -1,4 +1,4 @@
-# Señales y programación causal — Fases 3B-2B y 3B-2C-1
+# Señales y programación causal — Fases 3B-2B a 3B-2C-2
 
 `AltBEngine` implementa el único contrato StrategyEngine por eventos, compartido
 por los futuros Replay, Shadow y Live. Es un dataclass frozen con **solo config**;
@@ -158,3 +158,10 @@ for action in due.due_actions:
 Los nombres de historial/tiempo/Quote del ejemplo son inputs explícitos del
 llamador, no adaptadores implementados. Se prueba con datos sintéticos offline,
 sin descargar datos ni conectar el colector. No hay runner operativo nuevo.
+
+## Ronda posterior — Fase 3B-2C-2
+
+El estado conserva gestión DCA/TP e historial financiero después de Base. PAUSE,
+gaps y vetos no borran una ronda abierta. Las señales nuevas permanecen bloqueadas
+hasta un cierre probado; después se conserva la evidencia histórica. Ver
+[ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).

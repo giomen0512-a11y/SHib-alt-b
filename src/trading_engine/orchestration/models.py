@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from trading_engine.models._validation import require_type
 from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.decisions import StrategyState
-from trading_engine.models.orders import OrderIntent
+from trading_engine.models.orders import OrderCancelRequest, OrderIntent, validate_cancel_requests
 from trading_engine.models.signals import Signal
 
 
@@ -35,6 +35,7 @@ class CoordinationResult:
     signals: tuple[Signal, ...]
     order_intents: tuple[OrderIntent, ...]
     state: CoordinatorState
+    cancel_requests: tuple[OrderCancelRequest, ...] = ()
 
     def __post_init__(self) -> None:
         require_type(self.signals, tuple, "signals")
@@ -44,6 +45,9 @@ class CoordinationResult:
         for intent in self.order_intents:
             require_type(intent, OrderIntent, "order_intent")
         require_type(self.state, CoordinatorState, "state")
+        validate_cancel_requests(self.cancel_requests)
+        if {i.intent_id for i in self.order_intents} & {r.intent_id for r in self.cancel_requests}:
+            raise ValueError("No se puede emitir y cancelar la misma intención")
 
 
 @dataclass(frozen=True)

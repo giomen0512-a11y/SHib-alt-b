@@ -118,3 +118,16 @@ IntentId es `3e8dc55a-bdbd-527b-84df-0b01fdc28862`. OrderId y FillId siguen sien
 inputs explícitos de la capa externa. FillId idéntico con distinto contenido se
 rechaza; el snapshot conserva fills únicos. No hay exactly-once externo ni
 persistencia: [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
+
+## DCA y TP — Fase 3B-2C-2
+
+DCAk usa purpose `ALT_B_DCA_k`, RoundId de Base, event_at=opened_at de gestión
+y causal_ref=str(Base.IntentId), revision=0. Hay siete niveles, sin reemplazos
+automáticos ni revisiones por retry. Todos los TP usan purpose `ALT_B_TP`,
+instante causal explícito de emisión y causal_ref con Base.IntentId, FillId de
+entrada/salida ordenados por valor UUID y TP predecesor (initial para el primero).
+El encoding textual exacto se documenta en [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).
+
+OrderCancelRequest se correlaciona por la IntentId original: una solicitud por
+intención en el snapshot, sin generar una identidad del proveedor. OrderId y
+FillId siguen siendo inputs; no se inventan ni se hacen llamadas privadas.

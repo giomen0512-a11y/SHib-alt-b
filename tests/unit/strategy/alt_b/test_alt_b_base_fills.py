@@ -299,7 +299,12 @@ def test_complete_fill_defines_p0_only_when_base_resolved(emitted: CoordinationR
     assert base.fills == (fill,) and base.executed_quantity == fill.quantity.value
     assert base.average_fill_price == base.p0 == fill.price
     assert not base.order_pending and not base.reconciliation_required
-    assert base.block_reason == "base_confirmed" and not result.order_intents
+    assert base.block_reason == "base_confirmed"
+    assert len(result.order_intents) == 8
+    assert all(i.side is Side.BUY for i in result.order_intents[:7])
+    assert result.order_intents[-1].side is Side.SELL and result.order_intents[-1].reduce_only
+    management = snapshot(result.state).round_state
+    assert management is not None and management.p0 == fill.price
 
 
 def test_multiple_partial_fills_and_vwap_use_only_effective_quantities(

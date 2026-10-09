@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-2C-1
+# Arquitectura mínima — Fase 3B-2C-2
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -7,11 +7,12 @@ Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
     ↓
 StrategyEngine (único núcleo compartido)
     ↓
-StrategyResult (signals + scheduled_actions + order_intents)
+StrategyResult (signals + scheduled_actions + order_intents + cancel_requests)
     ↓
 StrategyCoordinator
     ├─ signals → llamador
     ├─ order_intents → llamador → RiskManager → ExecutionAdapter (futuro)
+    ├─ cancel_requests → llamador (solicitud, sin ejecutar ni confirmar)
     └─ scheduled_actions → state.pending_actions
                                 ↓ advance_time(state, now)
                            DueActionsResult
@@ -237,3 +238,14 @@ pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
 la ingesta incremental con estado de mercado explícito.
 AltBEngine emite señales, acciones +120s e intención Base teórica, sin órdenes DCA/TP, replay funcional, Shadow, Live,
 Add Margin ni Telegram.
+
+## Gestión de ronda — Fase 3B-2C-2
+
+El mismo AltBEngine conserva estado frozen de siete DCA, cadena TP y cancelaciones.
+execution_state reutiliza la conciliación de Base para todos los niveles; no se
+cambian interfaces de handlers ni fórmulas canónicas. OrderCancelRequest es la
+extensión genérica mínima para pedir cancelación por IntentId, sin crear OrderId
+ni fingir aceptación. El coordinador expone estas solicitudes y valida su tiempo,
+sin llamar riesgo/ejecución. Nuevos TP esperan terminalidad y fills conciliados.
+CLOSED exige neto cero y ausencia de órdenes potencialmente activas; historial
+conserva toda evidencia. Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md). Runtime STOPPED.
