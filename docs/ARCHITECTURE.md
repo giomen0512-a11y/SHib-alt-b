@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-2C-2
+# Arquitectura mínima — Fase 4A-1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -186,7 +186,9 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
   esos contratos y no contendrán una estrategia duplicada.
 - `orchestration`: coordinación y scheduling deterministas compartidos; sin
   ejecución, llamadas a riesgo ni efectos externos.
-- `replay`, `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
+- `replay`: runner causal offline sobre el mismo AltBEngine/StrategyCoordinator,
+  lectura SQLite read-only, reloj lógico, fuentes explícitas y snapshot integral.
+- `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
 - `add_margin`: futura política compartida, pendiente de especificación.
 - `persistence`: histórico SQLite exacto, separado de las reglas de decisión.
 - `binance`: HTTPS público USDⓈ-M Futures y normalización de datos, sin SDK,
@@ -236,8 +238,9 @@ Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes d
 implementaciones futuras siguen reservados; solo está implementada la matemática
 pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
 la ingesta incremental con estado de mercado explícito.
-AltBEngine emite señales, acciones +120s e intención Base teórica, sin órdenes DCA/TP, replay funcional, Shadow, Live,
-Add Margin ni Telegram.
+AltBEngine emite señales, acciones +120s e intenciones teóricas Base/DCA/TP.
+Replay causal offline se implementa en 4A-1; Shadow, Live, Add Margin y Telegram
+permanecen pendientes. No existe simulación financiera histórica.
 
 ## Gestión de ronda — Fase 3B-2C-2
 
@@ -249,3 +252,17 @@ ni fingir aceptación. El coordinador expone estas solicitudes y valida su tiemp
 sin llamar riesgo/ejecución. Nuevos TP esperan terminalidad y fills conciliados.
 CLOSED exige neto cero y ausencia de órdenes potencialmente activas; historial
 conserva toda evidencia. Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md). Runtime STOPPED.
+
+## Runner offline — Fase 4A-1
+
+`replay` consume solo minutos ya cerrados de una sesión SQLite de solo lectura.
+Conserva CoordinatorState íntegro y usa advance_time para extraer acciones due;
+no duplica fórmulas ni implementa ExecutionAdapter. QuoteSource y FactSource
+inyectan evidencia explícita y etiquetan fixtures sintéticos. PAUSE, hechos y
+cierres del mismo instante preceden a la acción. Sin Quote exacta en T+120,
+se invalida la reserva mediante el coordinador y se registra la causa.
+
+El snapshot incluye reloj, cursores, estados de ronda, órdenes/fills, resultados
+y huella incremental. Solo se reanuda en la misma sesión de lectura abierta,
+sin serialización/recovery persistente. El informe marca siempre
+FINANCIAL_RESULTS_NOT_AVAILABLE. Véase [REPLAY_SPEC.md](REPLAY_SPEC.md).

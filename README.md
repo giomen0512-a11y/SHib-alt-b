@@ -80,8 +80,9 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 - `signals`: reservado; el modelo genérico Signal se encuentra en `models/signals.py`.
 - `market_data`: además del contrato, CLI y coordinación manual del histórico público.
 - `binance`: transporte público y normalización Futures; `persistence`: histórico SQLite.
-- `replay`, `shadow`, `live`, `add_margin`, `telegram`:
-  paquetes reservados sin implementación.
+- `replay`: runner causal offline con SQLite read-only, reloj simulado, puertos
+  explícitos de Quote/Order/Fill y snapshot integral; sin resultados financieros.
+- `shadow`, `live`, `add_margin`, `telegram`: paquetes reservados sin implementación.
 - `tests/unit`: pruebas de infraestructura, dominio y datos, incluida integración SQLite de 27h.
 - `docs/`: arquitectura, seguridad y especificaciones futuras, fuente de verdad.
 
@@ -91,3 +92,9 @@ La [coordinación temporal](docs/ORCHESTRATION.md) explica ScheduledAction, pend
 La [identidad determinista](docs/IDENTITY.md) define namespace, schema v1 y helpers de IDs.
 La aplicación de producción no depende de Codex,
 ChatGPT ni OpenAI.
+
+## Replay causal — Fase 4A-1
+
+Consulta [REPLAY_SPEC.md](docs/REPLAY_SPEC.md) para el uso offline de biblioteca,
+la secuencia de eventos, ausencia de Quotes y reanudación dentro del proceso.
+El runtime continúa STOPPED. Los resultados financieros no están disponibles.
