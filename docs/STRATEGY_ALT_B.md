@@ -11,10 +11,13 @@ pura de sizing (pesos, márgenes y nocionales), desviaciones/precios teóricos D
 promedio ponderado de fills y TP teórico están implementadas y testeadas en
 `strategy/alt_b`. Las fórmulas y parámetros de esta especificación se conservan.
 **Fase 3B-1B** implementa la evaluación pura de los filtros y vetos de entrada,
-agregación 1m→15m y RV con taker-buy real. El motor concreto, señales, acciones y
-ejecución de órdenes siguen pendientes. `EntryEvaluation` no emite una señal.
+agregación 1m→15m y RV con taker-buy real. La ejecución de órdenes sigue pendiente;
+la integración de señales/acciones se incorpora en 3B-2B. `EntryEvaluation` no emite una señal.
 **Fase 3B-2A** añade la ingesta incremental con historial explícito e inmutable;
 reutiliza esa evaluación sin cambiar fórmulas ni parámetros.
+**Fase 3B-2B** conecta esa ingesta con AltBEngine, señales UUIDv5, acciones a
++120s y estado explícito. No implementa Base ni OrderIntent:
+[ALT_B_SIGNALS.md](ALT_B_SIGNALS.md).
 
 ## 1. Identidad y alcance
 
@@ -189,12 +192,12 @@ cierres o ante duplicado, evaluation=None. Antes de 26h se conserva la evaluaci�
 fail-closed de 3B-1B. La secuencia incremental de 27h se prueba contra evaluación
 directa del prefijo completo en cada checkpoint, con igualdad exacta.
 
-El estado puede reconstruirse desde velas validadas; no se implementa persistencia
-ni serialización. Un futuro runner deberá conservar historial, cursor de última
-vela, estado de estrategia/ronda y acciones/órdenes pendientes. La transferencia
-explícita de estado a través del motor por eventos sigue pendiente; no se cambia
-StrategyEngine, StrategyResult ni StrategyCoordinator ni se acopla estado financiero
-a CoordinatorState. No hay señales, órdenes ni garantía de una orden por evento.
+El estado de mercado puede reconstruirse desde velas validadas. Fase 3B-2B
+transfiere además el estado lógico completo a través del motor por eventos,
+sin persistencia ni serialización. CoordinatorState guarda un snapshot opaco;
+Alt B conserva historial, permiso, reserva pendiente y cursor causal. Una
+reconstrucción con cola incompatible falla. No hay ejecución ni garantía de
+una orden por evento; la reanudación operativa queda pendiente de 3B-2C.
 
 En las fórmulas siguientes, `i` es el bloque 15m recién cerrado; `C`, `H` y `L`
 indexados son cierre, máximo y mínimo 15m. Los intervalos de índices incluyen
@@ -352,7 +355,9 @@ Condiciones operativas o de seguridad sí pueden invalidar la entrada.
 Esta temporización expresa la acción futura requerida. La arquitectura de
 Fase 2.1 permite representarla mediante ScheduledAction sin fijar anticipadamente
 una Quantity; OrderIntent queda reservado para una orden ya concreta.
-La estrategia y su temporización específica todavía no están implementadas.
+Fase 3B-2B implementa señales y esta temporización, sin Quantity ni ejecución.
+Pausa, invalidación explícita o contexto incompatible cancelan la entrada. Una
+acción elegible queda bloqueada hasta 3B-2C; no se simula Base ni Fill.
 
 ## 12. PAUSE, RESUME y cambio de capital
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from trading_engine.models._validation import require_type
 from trading_engine.models.actions import ScheduledAction
+from trading_engine.models.decisions import StrategyState
 from trading_engine.models.orders import OrderIntent
 from trading_engine.models.signals import Signal
 
@@ -20,9 +21,13 @@ def _canonical_actions(actions: tuple[ScheduledAction, ...]) -> tuple[ScheduledA
 @dataclass(frozen=True)
 class CoordinatorState:
     pending_actions: tuple[ScheduledAction, ...] = ()
+    strategy_state: StrategyState | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "pending_actions", _canonical_actions(self.pending_actions))
+        if self.strategy_state is not None:
+            require_type(self.strategy_state, StrategyState, "strategy_state")
+            self.strategy_state.validate_pending_actions(self.pending_actions)
 
 
 @dataclass(frozen=True)

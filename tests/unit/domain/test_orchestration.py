@@ -14,7 +14,7 @@ import pytest
 import trading_engine.orchestration.coordinator as coordinator_module
 from trading_engine.models.account import Position
 from trading_engine.models.actions import ScheduledAction
-from trading_engine.models.decisions import StrategyResult
+from trading_engine.models.decisions import StrategyResult, StrategyState
 from trading_engine.models.ids import ActionId, OrderId, SignalId
 from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order, OrderIntent
@@ -42,22 +42,43 @@ class CannedStrategy:
         return self.responses[index]
 
     def on_candle(
-        self, candle: Candle, position: Position | None, round_state: Round | None
+        self,
+        candle: Candle,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self._respond("on_candle", candle, position, round_state)
 
     def on_quote(
-        self, quote: Quote, position: Position | None, round_state: Round | None
+        self,
+        quote: Quote,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self._respond("on_quote", quote, position, round_state)
 
     def on_order(
-        self, order: Order, position: Position | None, round_state: Round | None
+        self,
+        order: Order,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self._respond("on_order", order, position, round_state)
 
     def on_fill(
-        self, fill: Fill, order: Order, position: Position | None, round_state: Round | None
+        self,
+        fill: Fill,
+        order: Order,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self._respond("on_fill", fill, order, position, round_state)
 
@@ -67,8 +88,32 @@ class CannedStrategy:
         quote: Quote,
         position: Position | None,
         round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self._respond("on_scheduled_action", action, quote, position, round_state)
+
+    def on_entry_control(
+        self,
+        allow_entries: bool,
+        at: datetime,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
+    ) -> StrategyResult:
+        return self._respond("control", allow_entries, at, position, round_state)
+
+    def on_action_invalidated(
+        self,
+        action_id: ActionId,
+        at: datetime,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
+    ) -> StrategyResult:
+        return self._respond("invalidate", action_id, at, position, round_state)
 
 
 def scheduled(action: ScheduledAction, identifier: int, seconds: int) -> ScheduledAction:
@@ -529,6 +574,8 @@ def test_due_action_uses_current_quote_and_fill_remains_independent(
             quote: Quote,
             position: Position | None,
             round_state: Round | None,
+            *,
+            strategy_state: StrategyState | None = None,
         ) -> StrategyResult:
             self.calls.append(("on_scheduled_action", (action, quote, position, round_state)))
             # Sizing ilustrativo del fake; ninguna regla de Alternativa B.

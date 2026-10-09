@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 3B-1B
+# Modelos de dominio — Fase 3B-2B
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -56,12 +56,20 @@ Los constructores requieren enums reales; no aceptan strings como estados.
   no una orden concreta.
 - **Signal**: SignalId, símbolo, timestamp y `kind` textual no vacío. No define
   condiciones de entrada, parámetros de Alternativa B ni metadata arbitraria.
-- **StrategyResult**: resultado frozen con únicamente `signals: tuple[Signal, ...]`,
+- **StrategyState**: base frozen de snapshots explícitos definidos por la estrategia.
+  Su método puro validate_pending_actions permite validar la coherencia de la
+  cola sin incorporar reglas Alt B en el coordinador. No contiene datos de exchange.
+- **StrategyResult**: resultado frozen con `signals: tuple[Signal, ...]`,
   `scheduled_actions: tuple[ScheduledAction, ...]` y
   `order_intents: tuple[OrderIntent, ...]`, todas vacías por defecto e independientes.
   Rechaza contenedores distintos de tuple y elementos de tipo incorrecto.
   StrategyEngine → StrategyResult → signals + scheduled_actions + order_intents.
   Todos los modos compartirán el mismo StrategyEngine por eventos.
+  Añade `strategy_state: StrategyState | None = None` y
+  `cancelled_action_ids: tuple[ActionId, ...] = ()`. Un estado None conserva el
+  anterior en el coordinador. Los IDs cancelados se retiran antes de incorporar
+  acciones nuevas; rechaza IDs inválidos/duplicados o programar y cancelar el
+  mismo ID en un resultado. Los tres outputs originales mantienen sus defaults.
   El coordinador valida que cada ScheduledAction/OrderIntent nuevo tenga
   created_at >= event_time del handler, sin corregir timestamps. Esto no impone
   una validación retroactiva sobre las acciones ya presentes en su estado.
@@ -122,7 +130,8 @@ Los códigos de razón y la evaluación causal se describen en STRATEGY_ALT_B.md
 
 Los modelos temporales `CoordinatorState`, `CoordinationResult` y `DueActionsResult`
 residen en `orchestration/models.py`. Contienen acciones pendientes/due, señales, intenciones y estado,
-sin contexto financiero. Su orden canónico y uso de tiempo explícito se describen
+sin interpretar contexto financiero. CoordinatorState añade un strategy_state
+opaco opcional y lo conserva incluso al extraer acciones due. Su orden canónico y uso de tiempo explícito se describen
 en [ORCHESTRATION.md](ORCHESTRATION.md).
 
 Round requiere created_at <= opened_at/closed_at cuando existen y opened_at <=
@@ -146,4 +155,7 @@ persistencia. Los fakes de tests solo devuelven datos prefijados para probar
 compatibilidad estructural, ausencia de intención, rechazo y eventos parciales.
 
 No existe MarginAdjustmentIntent: ningún contrato actual lo necesita. No hay
-política Add Margin, PnL, liquidación, leverage, funding, fees ni señales reales.
+política Add Margin, PnL, liquidación, funding ni fees. Fase 3B-2B conecta la
+evaluación aprobada con señales y acciones +120s, sin ejecución ni Quantity:
+[ALT_B_SIGNALS.md](ALT_B_SIGNALS.md). La configuración conserva leverage canónico
+como parámetro, sin implementar ejecución ni cálculo de liquidación.

@@ -60,13 +60,34 @@ Base podría referir al ActionId vencido; TP al FillId causal; DCA a una identid
 causal del evento y nivel. Esas selecciones y reglas financieras no se implementan
 aquí. No usar texto aleatorio ni timestamps del reloj de sistema.
 
-Una futura estrategia concreta seleccionará componentes y llamará estos helpers.
+AltBEngine selecciona los componentes de señales/rondas/acciones en Fase 3B-2B.
 Los modelos siguen exigiendo IDs explícitos y StrategyCoordinator no los genera.
 OrderId y FillId quedan fuera: la futura capa de ejecución/adaptador resolverá
 su identidad y correlación con el proveedor o el modelo de ejecución Replay.
 
 Reconstruir IDs permite futura reconciliación; no implementa deduplicación,
 persistencia, recovery operativo, retries ni garantía de ejecución única.
+
+## Componentes Alt B — Fase 3B-2B
+
+Strategy_id canónico `B_DCA7_4X_TP080_AMPLIADO_VPS`, símbolo configurado,
+checkpoint causal T y kind `ALT_B_LONG_ENTRY` identifican la Signal con revision 0.
+RoundId deriva de ese SignalId. ActionId usa RoundId, kind `ALT_B_BASE_ENTRY`,
+created_at=T y not_before=T+120s, también revision 0. Retry, pausa/reinicio y
+duplicados no incrementan revision. No se deriva IntentId en esta fase.
+
+Vector congelado para `1000SHIBUSDC`, T=`2026-01-02T12:00:00.000000Z`:
+
+| Entidad | UUID |
+| --- | --- |
+| SignalId | `562f6059-cb33-5ccc-b208-68a643d24e07` |
+| RoundId | `ebd0da91-6e93-58c4-91ca-805a6568b56e` |
+| ActionId | `ec7ccf71-85e9-5cc3-b976-fa85b7dd9648` |
+
+AltBStrategyState conserva el cursor de mercado y la reserva lógica para evitar
+reemisiones al consumir el estado retornado. Reconstruir desde un snapshot previo
+reproduce los mismos IDs, pero registrar/notificar idempotentemente es trabajo
+de una futura capa externa. No hay persistencia ni garantía de una ejecución.
 
 ## Vectores congelados
 

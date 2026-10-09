@@ -1,17 +1,20 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase Datos 2 — colector público Futures autónomo, pendiente de despliegue**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase 3B-2B — señales y scheduling Alt B, sin ejecución**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
 Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
 Incluye `AltBConfig` y cálculos puros de pesos, márgenes, nocionales, desviaciones
-y precios DCA, promedio de fills y TP teórico; sin un StrategyEngine concreto.
+y precios DCA, promedio de fills y TP teórico.
 La evaluación pura de entrada agrega minutos UTC a bloques 15m y calcula filtros,
 vetos A/B y RV poblacional con taker-buy real. Devuelve `EntryEvaluation`;
 datos insuficientes bloquean la entrada y las velas futuras se rechazan.
 `ingest_closed_1m` recibe y devuelve estado explícito frozen, conserva hasta 1560
 minutos y evalúa solo cierres 15m. Un duplicado idéntico no reevalúa; un gap reinicia
-el historial y el warmup. Sin persistencia del estado de estrategia ni integración con StrategyEngine todavía.
+el historial y el warmup. AltBEngine integra esa evaluación con Signal UUIDv5 y
+ScheduledAction a +120s, con estado explícito frozen y control fail-closed.
+Sin OrderIntent, Quantity ni ejecución; ver [señales Alt B](docs/ALT_B_SIGNALS.md).
+No se implementa persistencia del estado estratégico.
 La CLI manual de datos permite archivos oficiales mensuales/diarios y REST público
 USDⓈ-M 1m, SQLite exacto, sincronización puntual y auditoría/recuperación de gaps.
 Consulta [pipeline de datos](docs/DATA_PIPELINE.md); no descarga al iniciar el bot.

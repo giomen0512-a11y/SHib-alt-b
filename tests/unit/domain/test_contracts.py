@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import replace
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -7,9 +8,9 @@ from trading_engine.execution.contracts import ExecutionAdapter
 from trading_engine.market_data.contracts import MarketDataProvider
 from trading_engine.models.account import BalanceSnapshot, Position
 from trading_engine.models.actions import ScheduledAction
-from trading_engine.models.decisions import RiskDecision, StrategyResult
+from trading_engine.models.decisions import RiskDecision, StrategyResult, StrategyState
 from trading_engine.models.enums import OrderStatus
-from trading_engine.models.ids import FillId, SignalId
+from trading_engine.models.ids import ActionId, FillId, SignalId
 from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order, OrderIntent
 from trading_engine.models.rounds import Round
@@ -33,22 +34,43 @@ class FakeStrategy:
         self.response = response
 
     def on_candle(
-        self, candle: Candle, position: Position | None, round_state: Round | None
+        self,
+        candle: Candle,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self.response
 
     def on_quote(
-        self, quote: Quote, position: Position | None, round_state: Round | None
+        self,
+        quote: Quote,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self.response
 
     def on_order(
-        self, order: Order, position: Position | None, round_state: Round | None
+        self,
+        order: Order,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self.response
 
     def on_fill(
-        self, fill: Fill, order: Order, position: Position | None, round_state: Round | None
+        self,
+        fill: Fill,
+        order: Order,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self.response
 
@@ -58,6 +80,30 @@ class FakeStrategy:
         quote: Quote,
         position: Position | None,
         round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
+    ) -> StrategyResult:
+        return self.response
+
+    def on_entry_control(
+        self,
+        allow_entries: bool,
+        at: datetime,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
+    ) -> StrategyResult:
+        return self.response
+
+    def on_action_invalidated(
+        self,
+        action_id: ActionId,
+        at: datetime,
+        position: Position | None,
+        round_state: Round | None,
+        *,
+        strategy_state: StrategyState | None = None,
     ) -> StrategyResult:
         return self.response
 

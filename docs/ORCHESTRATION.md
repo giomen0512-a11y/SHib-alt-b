@@ -1,4 +1,4 @@
-# Coordinación por eventos y acciones programadas — Fase 2.2
+# Coordinación por eventos y acciones programadas — Fase 3B-2B
 
 ```text
 Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
@@ -52,7 +52,15 @@ se exponen al llamador y no se guardan como acciones pendientes.
 `DueActionsResult` reemplaza a DueIntentsResult y contiene únicamente `due_actions`
 y `state`. Las acciones due también son canónicas y sin duplicados. Todos los
 resultados son frozen y validan contenedores tuple, sus elementos y el estado.
-No hay historial de señales, rondas, órdenes, balances o fills en el estado.
+CoordinatorState añade strategy_state opcional, un snapshot frozen definido por
+la estrategia cuyo contenido el coordinador no interpreta. Lo pasa como keyword
+a cada handler y conserva el snapshot nuevo de StrategyResult; None conserva
+el anterior. El snapshot puede validar su cola mediante validate_pending_actions,
+sin dependencias Alt B en orchestration.
+
+StrategyResult añade cancelled_action_ids para retirar acciones antes de añadir
+las nuevas. IDs ausentes pueden cancelarse idempotentemente. Un resultado no
+puede cancelar y programar el mismo ID; no se deduplican outputs inválidos.
 
 ## Handlers
 
@@ -66,6 +74,8 @@ Todos reciben `state` primero y snapshots opcionales `position=None` y
 | `on_order` | Order | `order.updated_at` |
 | `on_fill` | Fill y Order | `fill.timestamp` |
 | `on_scheduled_action` | ScheduledAction y Quote | `quote.timestamp` |
+| `on_entry_control` | bool allow_entries y at UTC | `at` |
+| `invalidate_action` | ActionId y at UTC → on_action_invalidated | `at` |
 
 Cada handler valida inputs antes de llamar exactamente una vez al método del
 motor, valida StrategyResult, integra scheduled_actions y retorna señales,
@@ -99,7 +109,8 @@ fuera de orden. Sus nuevos outputs sí se validan desde `fill.timestamp`.
 - `action.not_before <= now`: due_actions.
 - `action.not_before > now`: pendientes del nuevo estado.
 
-Las due desaparecen del estado retornado. Extraerlas no llama al motor ni las
+Las due desaparecen de la cola retornada; strategy_state se conserva sin cambios.
+Extraerlas no llama al motor ni las
 ejecuta. El runner debe conservar ese estado, obtener un Quote actual y entregar
 la acción elegible mediante `on_scheduled_action`. El handler no vuelve a extraer
 acciones ni usa un reloj implícito: el runner es responsable de ese flujo y del
@@ -108,7 +119,9 @@ elegibilidad descrita arriba. No se define aún una política de frescura de mer
 
 Una señal en T puede producir una ScheduledAction sin Quantity para T + delay.
 La reevaluación con el Quote futuro puede producir una OrderIntent con Quantity
-concreta. No hay un delay financiero hardcoded ni OPEN_BASE real en esta fase.
+concreta en una implementación posterior. El coordinador no fija delays.
+AltBEngine añade +120s a sus acciones en 3B-2B, sin ejecutar Base:
+[ALT_B_SIGNALS.md](ALT_B_SIGNALS.md).
 
 ## Quote, Fill y causalidad de precios
 
@@ -132,20 +145,24 @@ snapshots de dominio; no Binance, database, Telegram, adaptadores, riesgo o secr
 Mismos eventos, IDs, timestamps, estado y resultados de estrategia producen los
 mismos outputs y estado final. Las operaciones no mutan el estado previo.
 Avanzar nuevamente el estado retornado no reemite las due retiradas. No hay
-registro de ActionId ya retirados, watermark, reintentos, persistencia o política
+registro genérico de ActionId ya retirados, watermark propio del coordinador,
+reintentos, persistencia o política
 de ejecución. El llamador gestiona la secuencia y conserva el estado.
 
-Riesgo y ejecución siguen siendo pasos posteriores separados. No se implementan
-estrategia financiera, Alternativa B ni modos operativos; runtime sigue STOPPED.
+Riesgo y ejecución siguen siendo pasos posteriores separados. AltBEngine integra
+señales y scheduling con estado explícito, sin ejecución ni modos operativos;
+runtime sigue STOPPED. Su snapshot conserva reserva y watermark para impedir
+duplicados, cancelar entradas y bloquear la ejecución pendiente de 3B-2C.
 
 ## Política de identidad — Fase 2.2
 
 ScheduledAction, Signal, OrderIntent y Round requieren IDs explícitos al
-construirse; StrategyCoordinator y los modelos no los generan. La futura
-estrategia concreta seleccionará componentes explícitos y usará las funciones
+construirse; StrategyCoordinator y los modelos no los generan. AltBEngine
+selecciona componentes explícitos para señales/rondas/acciones y usa las funciones
 puras UUIDv5 de models/identity.py, con namespace fijo
 `22842300-09df-530e-93ea-1e985518f6d1`, schema v1 y JSON canónico. Mismo hecho
 y mismo estado lógico deben reconstruir los mismos IDs en Replay, Shadow, Live
 y recovery. Reprocesar o reintentar no incrementa revision. OrderId/FillId quedan
 fuera de esta capa. Consulta [IDENTITY.md](IDENTITY.md); no se implementan
-persistencia, generación aleatoria ni selección financiera de componentes.
+persistencia ni generación aleatoria. Los componentes Alt B se detallan en
+ALT_B_SIGNALS.md y IDENTITY.md; los helpers genéricos no cambian.

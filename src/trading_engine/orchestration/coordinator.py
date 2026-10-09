@@ -6,6 +6,7 @@ from trading_engine.models._validation import require_type, utc_timestamp
 from trading_engine.models.account import Position
 from trading_engine.models.actions import ScheduledAction
 from trading_engine.models.decisions import StrategyResult
+from trading_engine.models.ids import ActionId
 from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order
 from trading_engine.models.rounds import Round
@@ -31,7 +32,11 @@ class StrategyCoordinator:
         self._validate_context(state, position, round_state)
         require_type(candle, Candle, "candle")
         return self._integrate(
-            state, self._strategy.on_candle(candle, position, round_state), candle.close_time
+            state,
+            self._strategy.on_candle(
+                candle, position, round_state, strategy_state=state.strategy_state
+            ),
+            candle.close_time,
         )
 
     def on_quote(
@@ -44,7 +49,11 @@ class StrategyCoordinator:
         self._validate_context(state, position, round_state)
         require_type(quote, Quote, "quote")
         return self._integrate(
-            state, self._strategy.on_quote(quote, position, round_state), quote.timestamp
+            state,
+            self._strategy.on_quote(
+                quote, position, round_state, strategy_state=state.strategy_state
+            ),
+            quote.timestamp,
         )
 
     def on_order(
@@ -57,7 +66,11 @@ class StrategyCoordinator:
         self._validate_context(state, position, round_state)
         require_type(order, Order, "order")
         return self._integrate(
-            state, self._strategy.on_order(order, position, round_state), order.updated_at
+            state,
+            self._strategy.on_order(
+                order, position, round_state, strategy_state=state.strategy_state
+            ),
+            order.updated_at,
         )
 
     def on_fill(
@@ -74,7 +87,11 @@ class StrategyCoordinator:
         if fill.order_id != order.order_id:
             raise ValueError("fill.order_id debe coincidir con order.order_id")
         return self._integrate(
-            state, self._strategy.on_fill(fill, order, position, round_state), fill.timestamp
+            state,
+            self._strategy.on_fill(
+                fill, order, position, round_state, strategy_state=state.strategy_state
+            ),
+            fill.timestamp,
         )
 
     def on_scheduled_action(
@@ -94,8 +111,48 @@ class StrategyCoordinator:
             raise ValueError("quote.timestamp no puede ser anterior a action.not_before")
         return self._integrate(
             state,
-            self._strategy.on_scheduled_action(action, quote, position, round_state),
+            self._strategy.on_scheduled_action(
+                action, quote, position, round_state, strategy_state=state.strategy_state
+            ),
             quote.timestamp,
+        )
+
+    def on_entry_control(
+        self,
+        state: CoordinatorState,
+        allow_entries: bool,
+        at: datetime,
+        position: Position | None = None,
+        round_state: Round | None = None,
+    ) -> CoordinationResult:
+        self._validate_context(state, position, round_state)
+        require_type(allow_entries, bool, "allow_entries")
+        utc_timestamp(at, "at")
+        return self._integrate(
+            state,
+            self._strategy.on_entry_control(
+                allow_entries, at, position, round_state, strategy_state=state.strategy_state
+            ),
+            at,
+        )
+
+    def invalidate_action(
+        self,
+        state: CoordinatorState,
+        action_id: ActionId,
+        at: datetime,
+        position: Position | None = None,
+        round_state: Round | None = None,
+    ) -> CoordinationResult:
+        self._validate_context(state, position, round_state)
+        StrategyResult(cancelled_action_ids=(action_id,))  # Valida el ID antes del motor.
+        utc_timestamp(at, "at")
+        return self._integrate(
+            state,
+            self._strategy.on_action_invalidated(
+                action_id, at, position, round_state, strategy_state=state.strategy_state
+            ),
+            at,
         )
 
     @staticmethod
@@ -119,7 +176,13 @@ class StrategyCoordinator:
         for intent in result.order_intents:
             if intent.created_at < event_time:
                 raise ValueError("OrderIntent.created_at no puede ser anterior a event_time")
-        updated = CoordinatorState(state.pending_actions + result.scheduled_actions)
+        retained = tuple(
+            a for a in state.pending_actions if a.action_id not in result.cancelled_action_ids
+        )
+        updated = CoordinatorState(
+            retained + result.scheduled_actions,
+            result.strategy_state if result.strategy_state is not None else state.strategy_state,
+        )
         return CoordinationResult(
             signals=result.signals, order_intents=result.order_intents, state=updated
         )
@@ -134,4 +197,7 @@ class StrategyCoordinator:
                 due.append(action)
             else:
                 pending.append(action)
-        return DueActionsResult(due_actions=tuple(due), state=CoordinatorState(tuple(pending)))
+        return DueActionsResult(
+            due_actions=tuple(due),
+            state=CoordinatorState(tuple(pending), state.strategy_state),
+        )
