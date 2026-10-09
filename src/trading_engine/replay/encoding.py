@@ -14,7 +14,11 @@ def canonical(value: object) -> object:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value) and not isinstance(value, type):
-        return {f.name: canonical(getattr(value, f.name)) for f in fields(value)}
+        return {
+            f.name: canonical(getattr(value, f.name))
+            for f in fields(value)
+            if not (f.metadata.get("omit_if_none") and getattr(value, f.name) is None)
+        }
     if isinstance(value, tuple):
         return [canonical(v) for v in value]
     if value is None or type(value) in (str, int, bool):

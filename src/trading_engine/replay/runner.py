@@ -6,6 +6,7 @@ from hashlib import sha256
 from sqlite3 import Error as SQLiteError
 
 from trading_engine.binance.klines import DEFAULT_SYMBOL, LAUNCH, MARKET
+from trading_engine.models.ids import RoundId
 from trading_engine.models.market import Candle
 from trading_engine.models.orders import Order
 from trading_engine.orchestration.coordinator import StrategyCoordinator
@@ -13,6 +14,8 @@ from trading_engine.orchestration.models import CoordinationResult
 from trading_engine.replay.clock import SimulatedClock
 from trading_engine.replay.encoding import encoded
 from trading_engine.replay.execution_model.quotes import ModeledQuotes
+from trading_engine.replay.financial_ledger.core import FinancialLedger
+from trading_engine.replay.financial_ledger.models import LedgerState
 from trading_engine.replay.history import SQLiteHistory
 from trading_engine.replay.models import (
     InvalidPeriod,
@@ -53,6 +56,7 @@ class ReplayRunner:
         facts: FactSource | None = None,
         snapshot: ReplaySnapshot | None = None,
         simulator: SimulatedExecution | None = None,
+        ledger: FinancialLedger | None = None,
     ) -> None:
         config = AltBConfig() if config is None else config
         quotes = NoQuotes() if quotes is None else quotes
@@ -61,6 +65,7 @@ class ReplayRunner:
         self.quotes = quotes
         self.facts = facts
         self.simulator = simulator
+        self.ledger = ledger
         if simulator is not None:
             if simulator.quotes is not quotes:
                 raise ValueError("Simulador y runner requieren la misma fuente QuoteSource")
@@ -84,6 +89,8 @@ class ReplayRunner:
             execution_identity=execution_identity,
             simulation_identity=None if simulator is None else simulator.identity,
             simulation=None if simulator is None else simulator.initial(),
+            ledger_identity=None if ledger is None else ledger.identity,
+            ledger=None if ledger is None else ledger.initial(),
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -95,6 +102,7 @@ class ReplayRunner:
                 snapshot.fact_identity,
                 snapshot.execution_identity,
                 snapshot.simulation_identity,
+                snapshot.ledger_identity,
             ) != (
                 request,
                 config,
@@ -103,6 +111,7 @@ class ReplayRunner:
                 facts.identity,
                 execution_identity,
                 None if simulator is None else simulator.identity,
+                None if ledger is None else ledger.identity,
             ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
@@ -114,6 +123,8 @@ class ReplayRunner:
                 self._record("execution_model", execution_identity)
             if simulator is not None:
                 self._record("simulated_execution", simulator.identity)
+            if ledger is not None:
+                self._record("financial_ledger", ledger.identity)
             conflicts = history.conflicts(config.symbol)
             if conflicts:
                 self._snapshot = replace(
@@ -148,6 +159,17 @@ class ReplayRunner:
             self.simulator.validate(s.simulation, s.clock.now)
         elif s.simulation is not None:
             raise ValueError("Snapshot simulado requiere simulador")
+        if self.ledger is not None:
+            if s.ledger is None:
+                raise ValueError("Snapshot perdió estado financiero")
+            self.ledger.validate(s.ledger, s.clock.now)
+            if (
+                self.ledger.reconcile_closed(s.ledger, self._closed_rounds(), at=s.clock.now)
+                != s.ledger
+            ):
+                raise ValueError("Snapshot perdió conciliación de cierre financiero")
+        elif s.ledger is not None:
+            raise ValueError("Snapshot financiero requiere ledger")
         state = s.coordinator.strategy_state
         if state is not None:
             if not isinstance(state, AltBStrategyState):
@@ -207,6 +229,39 @@ class ReplayRunner:
                 self._simulation_update(
                     self.simulator.cancel(self._snapshot.simulation, request, s.clock.now)
                 )
+        if self.ledger is not None:
+            assert self._snapshot.ledger is not None
+            self._ledger_update(
+                self.ledger.reconcile_closed(
+                    self._snapshot.ledger, self._closed_rounds(), at=s.clock.now
+                )
+            )
+
+    def _closed_rounds(self) -> tuple[RoundId, ...]:
+        state = self._snapshot.coordinator.strategy_state
+        if not isinstance(state, AltBStrategyState):
+            return ()
+        return tuple(
+            r.base.intent.round_id
+            for r in state.round_history
+            if r.round_state.status(r.base) == "CLOSED"
+        )
+
+    def _ledger_update(self, state: LedgerState) -> None:
+        before = self._snapshot.ledger
+        assert before is not None
+        if state != before:
+            self._record(
+                "ledger_transition",
+                (
+                    state.entries[len(before.entries) :],
+                    state.journal[len(before.journal) :],
+                    state.conflicts,
+                ),
+            )
+            self._snapshot = replace(self._snapshot, ledger=state)
+        if state.conflicts:
+            raise ValueError("financial_ledger:" + state.conflicts[0].reason)
 
     def _simulation_update(self, state: ExecutionState) -> None:
         before = self._snapshot.simulation
@@ -332,6 +387,11 @@ class ReplayRunner:
         else:
             assert isinstance(payload, FillEvidence)
             result = self.coordinator.on_fill(s.coordinator, payload.fill, payload.order)
+            if self.ledger is not None:
+                assert self._snapshot.ledger is not None
+                self._ledger_update(
+                    self.ledger.receive(self._snapshot.ledger, fact, at=s.clock.now)
+                )
         self._integrate(result, provenance=fact.provenance)
         if not simulated:
             self._snapshot = replace(self._snapshot, fact_cursor=s.fact_cursor + 1)
@@ -441,7 +501,21 @@ class ReplayRunner:
                 self._simulation_due()
             self._snapshot = replace(self._snapshot, clock=self._snapshot.clock.advance(target))
         except (ValueError, TypeError, SQLiteError) as exc:
-            if self.simulator is not None and self._snapshot.simulation is not None:
+            if self.ledger is not None and self._snapshot.ledger is not None:
+                state = self.ledger.block(
+                    self._snapshot.ledger,
+                    self._snapshot.clock.now,
+                    f"replay_interruption:{type(exc).__name__}:{exc}",
+                )
+                if state != self._snapshot.ledger:
+                    # Registrar bloqueo sin volver a lanzar desde _ledger_update.
+                    self._record("ledger_conflict", state.conflicts)
+                    self._snapshot = replace(self._snapshot, ledger=state)
+            if (
+                self.simulator is not None
+                and self._snapshot.simulation is not None
+                and not (self._snapshot.ledger is not None and self._snapshot.ledger.conflicts)
+            ):
                 self._simulation_update(
                     self.simulator.conflict(
                         self._snapshot.simulation,
@@ -460,6 +534,17 @@ class ReplayRunner:
             return sum(e.kind == kind for e in s.emissions)
 
         state = s.coordinator.strategy_state
+        financial = None
+        availability = "FINANCIAL_RESULTS_NOT_AVAILABLE"
+        if self.ledger is not None and s.ledger is not None:
+            financial = self.ledger.report(s.ledger)
+            if s.simulation is not None:
+                financial = replace(financial, modeled_results=True)
+            availability = (
+                "PNL_BRUTO_REALIZADO_BLOQUEADO"
+                if s.ledger.conflicts or s.interruption is not None
+                else "PNL_BRUTO_REALIZADO_DISPONIBLE"
+            )
         return ReplayReport(
             MARKET,
             s.config.symbol.value,
@@ -483,6 +568,8 @@ class ReplayRunner:
             s.interruption,
             s.event_digest,
             s.event_count,
+            financial_results=availability,
+            financial_ledger=financial,
             execution_identity=s.execution_identity,
             price_evidence=s.price_evidence,
             modeled_intents=sum(

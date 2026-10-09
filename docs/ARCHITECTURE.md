@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 4A-2B
+# Arquitectura mínima — Fase 4A-3A
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -240,7 +240,7 @@ pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
 la ingesta incremental con estado de mercado explícito.
 AltBEngine emite señales, acciones +120s e intenciones teóricas Base/DCA/TP.
 Replay causal offline se implementa en 4A-1; Shadow, Live, Add Margin y Telegram
-permanecen pendientes. No existe simulación financiera histórica.
+permanecen pendientes. No existe backtest financiero histórico completo.
 
 ## Gestión de ronda — Fase 3B-2C-2
 
@@ -264,7 +264,7 @@ se invalida la reserva mediante el coordinador y se registra la causa.
 
 El snapshot incluye reloj, cursores, estados de ronda, órdenes/fills, resultados
 y huella incremental. Solo se reanuda en la misma sesión de lectura abierta,
-sin serialización/recovery persistente. El informe marca siempre
+sin serialización/recovery persistente. Sin ledger opt-in, el informe conserva
 FINANCIAL_RESULTS_NOT_AVAILABLE. Véase [REPLAY_SPEC.md](REPLAY_SPEC.md).
 
 ## Modelo de precios — Fase 4A-2A
@@ -288,3 +288,15 @@ las reglas DCA, VWAP, TP y cierre permanecen en AltBEngine. Snapshot conserva
 colas, evidencias y volumen compartido; report añade solo métricas técnicas.
 NoQuotes/FixtureQuotes sin simulador conservan sus huellas.
 Véase [SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md). Runtime STOPPED.
+
+## Contabilidad independiente — Fase 4A-3A
+
+`replay/financial_ledger` consume exclusivamente FillEvidence confirmados al
+recibirse, con procedencia, costo promedio móvil y PnL bruto realizado. No importa
+estrategia, simulador, riesgo, margen o transporte; no modifica órdenes/fills.
+ReplayRunner activa `ledger=None` únicamente por inyección explícita y transmite
+RoundIds CLOSED para conciliación con exposición cero. El mismo AltBEngine
+conserva P0, DCA, TP y shortfill. Estado/journal financiero se incorporan al
+snapshot/huella solo en modo activo; modo anterior conserva fingerprints.
+No implementa neto, fees/funding, equity/drawdown, mark/margen ni LIVE.
+Véase [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md). Runtime STOPPED.

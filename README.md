@@ -81,7 +81,7 @@ adicionales. Consulta [despliegue](docs/DEPLOYMENT.md).
 - `market_data`: además del contrato, CLI y coordinación manual del histórico público.
 - `binance`: transporte público y normalización Futures; `persistence`: histórico SQLite.
 - `replay`: runner causal offline con SQLite read-only, reloj simulado, puertos
-  explícitos de Quote/Order/Fill y snapshot integral; sin resultados financieros.
+  explícitos de Quote/Order/Fill, snapshot integral y ledger de PnL bruto opt-in.
 - `shadow`, `live`, `add_margin`, `telegram`: paquetes reservados sin implementación.
 - `tests/unit`: pruebas de infraestructura, dominio y datos, incluida integración SQLite de 27h.
 - `docs/`: arquitectura, seguridad y especificaciones futuras, fuente de verdad.
@@ -111,3 +111,11 @@ No se implementan fills históricos ni PnL; el runtime permanece STOPPED.
 opt-in de OrderIntent/CancelRequest con hechos MODELED_EXECUTION, latencias y
 volumen compartido. El mismo AltBEngine gestiona DCA/TP y cierre. Runtime STOPPED;
 no hay trading real ni resultados financieros.
+
+## Ledger offline — Fase 4A-3A
+
+[FINANCIAL_LEDGER_SPEC.md](docs/FINANCIAL_LEDGER_SPEC.md) documenta el ledger opt-in
+de FillEvidence recibidos: cantidades, costo promedio móvil, PnL bruto por ronda,
+conciliación y reanudación. Las huellas anteriores se conservan sin ledger.
+Neto, fees/funding, equity/drawdown y liquidación siguen no disponibles.
+Runtime STOPPED; sin trading, servicios ni despliegue.

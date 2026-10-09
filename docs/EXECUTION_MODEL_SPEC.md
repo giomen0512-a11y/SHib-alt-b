@@ -3,7 +3,7 @@
 Estado: primera capa offline de precios/supuestos. Comparar sensibilidad no
 calibra un mercado. **No implementa fills históricos, Order, PnL ni ejecución
 LIVE**. El runtime continúa STOPPED. Los resultados siguen marcados
-FINANCIAL_RESULTS_NOT_AVAILABLE.
+FINANCIAL_RESULTS_NOT_AVAILABLE cuando el ledger opt-in de 4A-3A está desactivado.
 
 Base aprobada: `01888d2758c231ffc51a82e7c0ea99f26136031e`.
 Rama: `phase-4a-2a-execution-policy`; un commit de implementación, sin merge.
@@ -259,3 +259,7 @@ latencias explícitas, presupuesto compartido y evidencia MODELED_EXECUTION:
 aplica una vez sobre ask; LIMIT usa un buffer de elegibilidad y precio igual al
 límite, sin cargarlo de nuevo. AltBEngine conserva todas sus fórmulas y conciliación.
 Las reglas no son observaciones calibradas; no se implementa PnL.
+
+La contabilidad posterior de los fills recibidos pertenece exclusivamente al
+ledger opt-in de 4A-3A: [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md).
+El módulo de precios conserva sus contratos y no calcula resultados financieros.

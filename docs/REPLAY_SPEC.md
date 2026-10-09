@@ -1,9 +1,10 @@
-# Replay causal — Fases 4A-1, 4A-2A y 4A-2B
+# Replay causal — Fases 4A-1, 4A-2A, 4A-2B y 4A-3A
 
 Infraestructura offline implementada sobre **el mismo AltBEngine y
 StrategyCoordinator** aprobados. No contiene fórmulas estratégicas, transporte al exchange ni cálculo
 de rentabilidad. Fase 4A-2B añade un simulador de ejecución offline opt-in separado.
-`FINANCIAL_RESULTS_NOT_AVAILABLE` aparece siempre en el informe.
+Sin ledger opt-in, `FINANCIAL_RESULTS_NOT_AVAILABLE` conserva su representación anterior.
+Fase 4A-3A añade contabilidad independiente de PnL bruto confirmado, sin PnL neto.
 El runtime principal continúa admitiendo únicamente STOPPED.
 
 ## Intervalo y lectura
@@ -169,7 +170,7 @@ La lista de Candle permanece limitada; solo se retienen las emisiones y evidenci
 necesarias para el estado/resultados, no un log completo de todas las velas.
 
 No informa rentabilidad, equity, drawdown, fees o funding calculados.
-`financial_results = FINANCIAL_RESULTS_NOT_AVAILABLE` es obligatorio.
+`financial_results = FINANCIAL_RESULTS_NOT_AVAILABLE` se conserva cuando el ledger está desactivado.
 
 ## Uso de biblioteca offline
 
@@ -228,4 +229,18 @@ Snapshot/report añaden estado/identidad del simulador y métricas técnicas.
 El orden anterior se conserva y se añaden puntos de entrega causales antes/después
 del cierre y después de la acción. Véase
 [SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md) para secuencia exacta,
-restricciones, supuestos y reanudación. No se calculan resultados financieros.
+restricciones, supuestos y reanudación. El simulador no calcula resultados financieros.
+
+## Ledger opt-in — Fase 4A-3A
+
+`ledger=None` conserva comportamiento, JSON y fingerprints anteriores. Activar
+FinancialLedger incorpora asientos únicamente al entregar FillEvidence al mismo
+coordinador, respetando received_at/delivery latency. Order/cancelaciones no añaden
+economía; Base shortfill mantiene exposición y bloqueo estratégico.
+ReplaySnapshot conserva identidad/estado financiero y valida íntegramente su journal.
+ReplayReport.financial_ledger expone cantidades, nocionales, costo promedio móvil,
+PnL bruto por ronda, procedencia y conflictos. CLOSED estratégico exige posición
+contable cero. Continuo/fragmentado incluye el ledger y la huella.
+Con contabilidad válida: PNL_BRUTO_REALIZADO_DISPONIBLE; con conflicto:
+PNL_BRUTO_REALIZADO_BLOQUEADO. Neto, unrealized, equity, drawdown, fees, funding,
+liquidación y margen no disponibles. Véase [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md).

@@ -294,7 +294,7 @@ Los conflictos interrumpen con causa explícita; no se completan rondas por fuer
 
 ## Límites y próxima contabilidad
 
-FINANCIAL_RESULTS_NOT_AVAILABLE permanece obligatorio. No hay rentabilidad,
+Sin ledger opt-in, FINANCIAL_RESULTS_NOT_AVAILABLE permanece obligatorio. No hay rentabilidad,
 drawdown financiero, equity, fees, funding, margen disponible, liquidación ni
 Add Margin. Las rondas sintéticas prueban contratos causales, no rentabilidad
 2024–2026. No se descargan datos ni se conecta exchange.
@@ -304,3 +304,9 @@ validación fuera de muestra, filtros/ticks/steps, ledger de cash/posición/cost
 fees y funding con fuentes verificadas, mark/margen y reconciliación contable.
 No convertir una hipótesis BASE en hecho real ni ocultar no ejecuciones al informar
 contabilidad. La entrega se detiene para revisión, sin merge ni despliegue.
+
+Fase 4A-3A añade un ledger independiente opt-in que contabiliza únicamente
+FillEvidence al recibirse en el runner, nunca los hechos futuros generados aquí.
+Este simulador no cambia ni calcula PnL: [FINANCIAL_LEDGER_SPEC.md](FINANCIAL_LEDGER_SPEC.md).
+El ledger conserva exposición de Base MARKET parcial cancelada y distingue
+PnL bruto modelado de neto/equity no disponibles.

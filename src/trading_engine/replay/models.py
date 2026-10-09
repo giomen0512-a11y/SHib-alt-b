@@ -1,6 +1,6 @@
 """Snapshots integrales de una sesión offline; sin serialización de recovery."""
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Literal
@@ -12,6 +12,7 @@ from trading_engine.models.signals import Signal
 from trading_engine.orchestration.models import CoordinatorState
 from trading_engine.replay.clock import SimulatedClock
 from trading_engine.replay.encoding import canonical, encoded
+from trading_engine.replay.financial_ledger.models import LedgerReport, LedgerState
 from trading_engine.replay.ports import QuoteEvidence
 from trading_engine.replay.simulated_execution.state import ExecutionMetrics, ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
@@ -92,6 +93,8 @@ class ReplaySnapshot:
     price_evidence: tuple[QuoteEvidence, ...] = ()
     simulation_identity: str | None = None
     simulation: ExecutionState | None = None
+    ledger_identity: str | None = field(default=None, metadata={"omit_if_none": True})
+    ledger: LedgerState | None = field(default=None, metadata={"omit_if_none": True})
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
@@ -99,6 +102,7 @@ class ReplaySnapshot:
             (field.name, getattr(self, field.name))
             for field in fields(self)
             if field.name not in {"history_session", "integrity_digest"}
+            and not (field.metadata.get("omit_if_none") and getattr(self, field.name) is None)
         )
         return sha256(encoded(payload)).hexdigest()
 
@@ -131,6 +135,7 @@ class ReplayReport:
     modeled_intents: int = 0
     simulation: ExecutionState | None = None
     execution_metrics: ExecutionMetrics | None = None
+    financial_ledger: LedgerReport | None = field(default=None, metadata={"omit_if_none": True})
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)

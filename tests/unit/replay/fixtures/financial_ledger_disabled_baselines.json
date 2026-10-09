@@ -1,0 +1,20 @@
+{
+  "no_quotes": {
+    "event_digest": "12039f682ff903e8b2f64ba64aad72c2e8b7d909308e70c92877b5ddc6e554a5",
+    "integrity_digest": "c88bb59ea96dff557f2cce04f56356a456be1678a18b087ba9dc26f60036ce3e",
+    "report_digest": "07c0026c2d2105737c6d865388ac94144ac8543eca24cb55eb350c910d06d14a",
+    "as_dict_digest": "07c0026c2d2105737c6d865388ac94144ac8543eca24cb55eb350c910d06d14a"
+  },
+  "fixture_quotes": {
+    "event_digest": "f4014add3c8339a3503211e2aca435c0b52a70d392604e3948207112f395b8c1",
+    "integrity_digest": "b42d42a5ea9a892d5f289cc60c988214bc880df86423d2d29d7d84ad4ed9ca2e",
+    "report_digest": "4ed2681c2cf9ca87a916b9ef076d0d7fe6917b68f28c4df407254c4c3fa331d2",
+    "as_dict_digest": "4ed2681c2cf9ca87a916b9ef076d0d7fe6917b68f28c4df407254c4c3fa331d2"
+  },
+  "modeled_simulator": {
+    "event_digest": "eaeab6efcd56778669cdcb978350272c4b86d303710482b5bfafd52dcb3addd0",
+    "integrity_digest": "29ed6a67a6a0d9f3e0e7518ed352667ad2b93353b3f0500a102c5a70a7496dcd",
+    "report_digest": "8781e6a45bf459cacd607e6f092063b0891f95874c1c23915909d586ab7f46e7",
+    "as_dict_digest": "8781e6a45bf459cacd607e6f092063b0891f95874c1c23915909d586ab7f46e7"
+  }
+}
