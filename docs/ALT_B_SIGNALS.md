@@ -1,4 +1,4 @@
-# Fase 3B-2B — señales y programación causal
+# Señales y programación causal — Fases 3B-2B y 3B-2C-1
 
 `AltBEngine` implementa el único contrato StrategyEngine por eventos, compartido
 por los futuros Replay, Shadow y Live. Es un dataclass frozen con **solo config**;
@@ -57,7 +57,9 @@ AltBStrategyState es frozen y contiene únicamente:
 - `allow_entries`: permiso explícito para nuevas señales.
 - `pending_entry`: Signal y ScheduledAction propias, más evaluated_at opcional.
 - `last_event_at`: watermark causal UTC de eventos observados.
-- `block_reason`: bloqueo explícito, incluida ejecución pendiente de 3B-2C.
+- `block_reason`: bloqueo explícito.
+- `base`: reserva consumida y evidencia de Order/Fill incorporada en 3B-2C-1;
+  ver [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
 
 La PendingEntry valida los IDs UUIDv5, símbolo, kinds, checkpoint 15m y el delay
 exacto. No es una Round financiera, posición, orden, Quantity, notional ni P0.
@@ -116,26 +118,20 @@ entregada sin reserva válida o con identidad/campos distintos invalida el inten
 nunca genera una intención. Inputs/estado estructuralmente inválidos producen
 errores explícitos y ningún output ejecutable.
 
-## Frontera de 120 segundos y bloqueo 3B-2C
+## Frontera de 120 segundos e intención Base — 3B-2C-1
 
 `advance_time` conserva strategy_state y solo extrae acciones elegibles. El runner
 entrega la acción extraída y Quote al handler. El guard existente del coordinador
 rechaza Quote.timestamp < not_before; el motor aplica la misma barrera cuando se
 llama directamente. La igualdad exacta es elegible. No se usan sleeps ni reloj.
 
-No se recalculan filtros durante la espera ni con el Quote. Al evaluar una acción
-válida elegible se guarda evaluated_at y
-`block_reason=base_execution_not_implemented_3b_2c`. Se mantiene la reserva lógica
-para impedir otra entrada. **No se crea OrderIntent ni se ejecuta Base**. Un retry
-no cambia evaluated_at ni fabrica fills. La observación de Order/Fill también
-bloquea nuevas entradas y cancela la reserva: reconciliación no implementada.
-El coordinador genérico sigue permitiendo fills observados fuera de orden; este
-motor incompleto falla ante eventos anteriores a su watermark.
-
-Quote no es Fill, no fija P0 ni Quantity. Pendientes: sizing ejecutable de Base,
-riesgo, fills/reconciliación, política de reinicio operativo, frescura de Quote,
-slippage y shortfill. Ninguna política LIVE sin especificar recibe un valor
-provisional. DCA, TP operativo, Add Margin y persistencia financiera siguen fuera.
+No se recalculan filtros durante la espera ni con el Quote. Fase 3B-2C-1 consume
+una acción válida autorizada y emite una única intención BUY MARKET teórica.
+Se retira la acción y se conserva la reserva como BaseState. Un retry desde el
+estado consumido no reemite. Quote.ask sirve solo para sizing; no es Fill ni P0.
+Order y Fill explícitos se procesan como hechos independientes, con conciliación
+de cantidades y preservación de evidencia tardía. La política y sus límites se
+detallan en [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md). No hay ejecución real.
 
 ## Uso offline
 
@@ -156,7 +152,7 @@ due = coordinator.advance_time(state, now_utc)
 state = due.state
 for action in due.due_actions:
     result = coordinator.on_scheduled_action(state, action, current_quote)
-    state = result.state  # Siempre order_intents=() en 3B-2B.
+    state = result.state  # Conservar reserva consumida; outputs teóricos, sin envío.
 ```
 
 Los nombres de historial/tiempo/Quote del ejemplo son inputs explícitos del

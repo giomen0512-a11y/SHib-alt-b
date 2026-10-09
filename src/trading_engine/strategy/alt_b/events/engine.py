@@ -1,4 +1,4 @@
-"""Un único motor puro por eventos: señales y scheduling, sin órdenes."""
+"""Un único motor puro: señales, intención Base y hechos Order/Fill explícitos."""
 
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -13,8 +13,13 @@ from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order
 from trading_engine.models.rounds import Round
 from trading_engine.strategy.alt_b.config import AltBConfig
+from trading_engine.strategy.alt_b.events.base import (
+    BaseState,
+    base_intent,
+    observe_fill,
+    observe_order,
+)
 from trading_engine.strategy.alt_b.events.state import (
-    BASE_EXECUTION_PENDING,
     AltBStrategyState,
     PendingEntry,
     entry_identity,
@@ -40,6 +45,12 @@ class AltBEngine:
             expected = entry_identity(self.config, state.pending_entry.signal.timestamp)
             if (state.pending_entry.signal, state.pending_entry.action) != expected:
                 raise ValueError("Identidad pendiente incompatible con la configuración")
+        if state.base is not None:
+            base = state.base
+            if base.action.symbol != self.config.symbol or base.intent != base_intent(
+                base.action, base.reference_quote, self.config
+            ):
+                raise ValueError("Base incompatible con la configuración")
         return state
 
     @staticmethod
@@ -47,6 +58,8 @@ class AltBEngine:
         state: AltBStrategyState, reason: str
     ) -> tuple[AltBStrategyState, tuple[ActionId, ...]]:
         ids = () if state.pending_entry is None else (state.pending_entry.action.action_id,)
+        if state.block_reason == "execution_without_base_reservation":
+            reason = state.block_reason
         return replace(state, pending_entry=None, block_reason=reason), ids
 
     def _prepare(
@@ -55,9 +68,11 @@ class AltBEngine:
         at: datetime,
         position: Position | None,
         round_state: Round | None,
+        *,
+        execution_fact: bool = False,
     ) -> tuple[AltBStrategyState, tuple[ActionId, ...]]:
         utc_timestamp(at, "event_time")
-        if state.last_event_at is not None and at < state.last_event_at:
+        if not execution_fact and state.last_event_at is not None and at < state.last_event_at:
             raise ValueError("Evento anterior al cursor causal; no usar contexto futuro")
         reason: str | None = None
         if not state.allow_entries:
@@ -77,12 +92,19 @@ class AltBEngine:
                 RoundStatus.OPEN,
                 RoundStatus.CLOSING,
             ):
-                reason = "round_active"
-        state = replace(state, last_event_at=at)
+                own_reservation = (
+                    round_state.status is RoundStatus.PENDING_ENTRY
+                    and state.pending_entry is not None
+                    and round_state.round_id == state.pending_entry.action.round_id
+                )
+                if not own_reservation:
+                    reason = "round_active"
+        state = replace(state, last_event_at=max(at, state.last_event_at or at))
         if reason is not None:
             return self._cancel(state, reason)
-        blocked = state.pending_entry is not None and state.pending_entry.evaluated_at is not None
-        return replace(state, block_reason=BASE_EXECUTION_PENDING if blocked else None), ()
+        if state.block_reason == "execution_without_base_reservation":
+            return state, ()
+        return replace(state, block_reason=state.base.block_reason if state.base else None), ()
 
     @staticmethod
     def _result(state: AltBStrategyState, cancelled: tuple[ActionId, ...] = ()) -> StrategyResult:
@@ -164,6 +186,9 @@ class AltBEngine:
         state, cancelled = self._prepare(
             self._snapshot(strategy_state), quote.timestamp, position, round_state
         )
+        if state.base is not None:
+            # Reserva consumida: ningún retry ni otra acción puede emitir segunda Base.
+            return self._result(state, tuple(dict.fromkeys((*cancelled, action.action_id))))
         pending = state.pending_entry
         if (
             pending is None
@@ -174,14 +199,17 @@ class AltBEngine:
             reason = state.block_reason or "pending_entry_unverifiable"
             state, extra = self._cancel(state, reason)
             return self._result(state, tuple(dict.fromkeys((*cancelled, *extra, action.action_id))))
-        if pending.evaluated_at is None:
-            state = replace(
-                state,
-                pending_entry=replace(pending, evaluated_at=quote.timestamp),
-                block_reason=BASE_EXECUTION_PENDING,
-            )
-        # Se conserva la reserva lógica para impedir otra entrada mientras 3B-2C falta.
-        return self._result(state, cancelled)
+        if pending.evaluated_at is not None:
+            # Un snapshot bloqueado de la fase anterior requiere revisión explícita.
+            return self._result(replace(state, block_reason="entry_requires_reconciliation"))
+        intent = base_intent(action, quote, self.config)
+        base = BaseState(action, quote, intent)
+        state = replace(state, pending_entry=None, base=base, block_reason=base.block_reason)
+        return StrategyResult(
+            order_intents=(intent,),
+            strategy_state=state,
+            cancelled_action_ids=tuple(dict.fromkeys((*cancelled, action.action_id))),
+        )
 
     def on_entry_control(
         self,
@@ -229,9 +257,18 @@ class AltBEngine:
     ) -> StrategyResult:
         require_type(order, Order, "order")
         state, cancelled = self._prepare(
-            self._snapshot(strategy_state), order.updated_at, position, round_state
+            self._snapshot(strategy_state),
+            order.updated_at,
+            position,
+            round_state,
+            execution_fact=True,
         )
-        state, extra = self._cancel(state, "execution_reconciliation_not_implemented_3b_2c")
+        if state.base is not None:
+            base = observe_order(state.base, order)
+            return self._result(
+                replace(state, base=base, block_reason=base.block_reason), cancelled
+            )
+        state, extra = self._cancel(state, "execution_without_base_reservation")
         return self._result(
             replace(state, allow_entries=False), tuple(dict.fromkeys((*cancelled, *extra)))
         )
@@ -250,9 +287,18 @@ class AltBEngine:
         if fill.order_id != order.order_id:
             raise ValueError("Fill de otra orden")
         state, cancelled = self._prepare(
-            self._snapshot(strategy_state), fill.timestamp, position, round_state
+            self._snapshot(strategy_state),
+            max(fill.timestamp, order.updated_at),
+            position,
+            round_state,
+            execution_fact=True,
         )
-        state, extra = self._cancel(state, "execution_reconciliation_not_implemented_3b_2c")
+        if state.base is not None:
+            base = observe_fill(observe_order(state.base, order), fill)
+            return self._result(
+                replace(state, base=base, block_reason=base.block_reason), cancelled
+            )
+        state, extra = self._cancel(state, "execution_without_base_reservation")
         return self._result(
             replace(state, allow_entries=False), tuple(dict.fromkeys((*cancelled, *extra)))
         )

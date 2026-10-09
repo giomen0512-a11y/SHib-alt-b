@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-2B
+# Arquitectura mínima — Fase 3B-2C-1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -65,7 +65,7 @@ de fills observados fuera de orden se detallan en ORCHESTRATION.md.
 Fase 2.2 define la política de identidad en `models/identity.py`: funciones puras
 UUIDv5 con namespace fijo `22842300-09df-530e-93ea-1e985518f6d1`, schema v1 y
 componentes explícitos codificados como JSON canónico. AltBEngine elige los
-componentes de SignalId, RoundId y ActionId; IntentId queda para fases posteriores.
+componentes de SignalId, RoundId, ActionId y el IntentId teórico de Base.
 StrategyCoordinator y los modelos no generan IDs. OrderId/FillId corresponden a
 la futura capa de ejecución/adaptador. Consulta [IDENTITY.md](IDENTITY.md) para
 encoding, revision e idempotencia; no hay generación aleatoria ni persistencia.
@@ -150,9 +150,11 @@ La acción se crea en T y es elegible en T+120s, sin Quantity ni OrderIntent.
 Los eventos on_entry_control e invalidate_action cancelan la reserva y su acción.
 Un gap también cancela la entrada y reinicia warmup. El watermark impide usar
 control futuro para un checkpoint pasado; duplicados no reevalúan ni emiten.
-Al llegar a +120s se registra evaluated_at y un bloqueo explícito de ejecución
-pendiente de 3B-2C, manteniendo la reserva contra otra entrada. No hay Base, Fill,
-P0, DCA, TP operativo ni persistencia financiera. Quote nunca equivale a Fill.
+Fase 3B-2C-1 consume la acción a +120s con autorización y Quote explícitos:
+emite BUY MARKET teórica y conserva la reserva en BaseState. Order/Fill entrantes
+actualizan evidencia, cantidad efectiva, conciliación y VWAP/P0, sin enviar órdenes.
+No hay DCA, TP operativo ni persistencia financiera. Quote nunca equivale a Fill.
+Ver [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
 
 El llamador conserva el snapshot completo; reconstruir solo velas no recupera
 control/reservas. No se implementa serialización ni recovery operativo. Una
@@ -176,7 +178,7 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
 - `market_data`: contrato de provisión y coordinación manual del histórico público;
   no toma decisiones ni ejecuta órdenes.
 - `strategy`: contratos, matemáticas y evaluación pura de entrada de Alternativa B; el núcleo de decisión
-  concreto implementa únicamente señales y scheduling. `signals` sigue reservado. Sin llamadas a Binance,
+  concreto implementa señales, scheduling, intención Base y evidencia Order/Fill. `signals` sigue reservado. Sin llamadas a Binance,
   Telegram, persistencia o adaptadores específicos de un modo.
 - `risk`: futura validación de intenciones antes de ejecutar.
 - `execution`: contrato mínimo de ejecución. Los futuros adaptadores de modo cumplirán
@@ -223,7 +225,7 @@ offsets no UTC; la normalización de fuentes externas corresponderá a sus adapt
 Configuración separada del código y secretos fuera del repositorio. La carga
 rechaza modos no implementados o desconocidos en lugar de aceptar una operativa
 incompleta. `OperatingMode` enumera estados futuros sin definir transiciones.
-También en Fase 3B-2B solo `STOPPED` es válido. No existe un interruptor que habilite Live.
+También en Fase 3B-2C-1 solo `STOPPED` es válido. No existe un interruptor que habilite Live.
 
 El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
@@ -233,5 +235,5 @@ Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes d
 implementaciones futuras siguen reservados; solo está implementada la matemática
 pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
 la ingesta incremental con estado de mercado explícito.
-AltBEngine emite señales y acciones +120s, sin órdenes DCA/TP, replay funcional, Shadow, Live,
+AltBEngine emite señales, acciones +120s e intención Base teórica, sin órdenes DCA/TP, replay funcional, Shadow, Live,
 Add Margin ni Telegram.

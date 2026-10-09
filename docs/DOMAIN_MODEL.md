@@ -1,4 +1,4 @@
-# Modelos de dominio — Fase 3B-2B
+# Modelos de dominio — Fase 3B-2C-1
 
 Los valores y snapshots son dataclasses frozen y validan al construir. No añaden dependencias
 externas, ejecución, almacenamiento ni lógica de estrategia. Se importan desde
@@ -159,3 +159,14 @@ política Add Margin, PnL, liquidación, funding ni fees. Fase 3B-2B conecta la
 evaluación aprobada con señales y acciones +120s, sin ejecución ni Quantity:
 [ALT_B_SIGNALS.md](ALT_B_SIGNALS.md). La configuración conserva leverage canónico
 como parámetro, sin implementar ejecución ni cálculo de liquidación.
+
+## Base explícita de Alternativa B — Fase 3B-2C-1
+
+AltBStrategyState añade BaseState opcional, frozen, sin cambiar contratos genéricos.
+Conserva acción consumida, Quote de referencia, intención teórica BUY MARKET
+reduce_only=False, Order vinculada, tuple de Fill únicos y conflicto de orden
+explícito. Deriva cantidad efectiva y VWAP solo de esos fills. P0 requiere Base
+resuelta y conciliada, nunca Quote o cantidad solicitada. No fabrica Position ni
+Round financiera y no envía órdenes. La reserva no desaparece por PAUSE, retry,
+gap o entrega tardía. Cancel/reject parcial bloquea para reconciliación.
+Consultar [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md) para invariantes y límites.

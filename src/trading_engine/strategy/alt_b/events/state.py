@@ -1,4 +1,4 @@
-"""Estado lógico explícito de señales; no balances, órdenes ni persistencia."""
+"""Snapshot explícito de entrada y Base; sin balances ni persistencia."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -10,12 +10,12 @@ from trading_engine.models.decisions import StrategyState
 from trading_engine.models.identity import make_action_id, make_round_id, make_signal_id
 from trading_engine.models.signals import Signal
 from trading_engine.strategy.alt_b.config import AltBConfig
+from trading_engine.strategy.alt_b.events.base import BaseState
 from trading_engine.strategy.alt_b.state_market import AltBMarketState
 
 SIGNAL_KIND: Final[str] = "ALT_B_LONG_ENTRY"
 ACTION_KIND: Final[str] = "ALT_B_BASE_ENTRY"
 ENTRY_DELAY: Final[timedelta] = timedelta(seconds=120)
-BASE_EXECUTION_PENDING: Final[str] = "base_execution_not_implemented_3b_2c"
 
 
 def entry_identity(config: AltBConfig, at: datetime) -> tuple[Signal, ScheduledAction]:
@@ -67,6 +67,7 @@ class AltBStrategyState(StrategyState):
     pending_entry: PendingEntry | None = None
     last_event_at: datetime | None = None
     block_reason: str | None = None
+    base: BaseState | None = None
 
     def validate_pending_actions(self, actions: tuple[ScheduledAction, ...]) -> None:
         # Cola vacía también es válida tras advance_time: la reserva estratégica permanece.
@@ -104,3 +105,20 @@ class AltBStrategyState(StrategyState):
                 self.last_event_at is None or evaluated > self.last_event_at
             ):
                 raise ValueError("Evaluación posterior al cursor causal")
+        if self.base is not None:
+            require_type(self.base, BaseState, "base")
+            if self.pending_entry is not None:
+                raise ValueError("Base consumida no admite otra entrada pendiente")
+            signal, expected = entry_identity(
+                AltBConfig(symbol=self.base.action.symbol), self.base.action.created_at
+            )
+            PendingEntry(signal, self.base.action)  # También exige checkpoint exacto 15m.
+            if self.base.action != expected:
+                raise ValueError("Identidad de acción de Base no verificable")
+            observed_times = (
+                self.base.intent.created_at,
+                *(f.timestamp for f in self.base.fills),
+                *((self.base.order.updated_at,) if self.base.order is not None else ()),
+            )
+            if self.last_event_at is None or any(t > self.last_event_at for t in observed_times):
+                raise ValueError("Base posterior al cursor causal")

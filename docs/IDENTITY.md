@@ -103,3 +103,18 @@ Para strategy_id `strategy.example`, Symbol `TESTUSDC`, checkpoint
 
 Los golden tests contienen expectativas literales; no recalculan el esperado
 con el helper probado. Protegen namespace, schema, etiquetas, orden y encoding.
+
+## Intención Base Alt B — Fase 3B-2C-1
+
+make_intent_id usa RoundId reservado, purpose `ALT_B_BASE`,
+event_at=Quote.timestamp y causal_ref=str(ActionId), revision=0. Quote.timestamp
+es el instante causal entregado, nunca reloj interno. Cantidad teórica y Quote
+quedan en el snapshot para verificar la intención al reconstruirlo; no se cambia
+namespace/schema ni se incrementa revision en retries. Una acción consumida no
+emite otra intención desde el estado retornado.
+
+Con el vector Alt B anterior y Quote.timestamp=`2026-01-02T12:02:00.000000Z`,
+IntentId es `3e8dc55a-bdbd-527b-84df-0b01fdc28862`. OrderId y FillId siguen siendo
+inputs explícitos de la capa externa. FillId idéntico con distinto contenido se
+rechaza; el snapshot conserva fills únicos. No hay exactly-once externo ni
+persistencia: [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).

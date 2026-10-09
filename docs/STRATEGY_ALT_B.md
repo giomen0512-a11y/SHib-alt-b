@@ -18,6 +18,9 @@ reutiliza esa evaluación sin cambiar fórmulas ni parámetros.
 **Fase 3B-2B** conecta esa ingesta con AltBEngine, señales UUIDv5, acciones a
 +120s y estado explícito. No implementa Base ni OrderIntent:
 [ALT_B_SIGNALS.md](ALT_B_SIGNALS.md).
+**Fase 3B-2C-1** incorpora intención Base teórica con Quote.ask y hechos explícitos
+Order/Fill, sin enviar órdenes. Conserva reserva y evidencia parcial, concilia
+cantidades y deriva VWAP/P0 únicamente de fills: [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
 
 ## 1. Identidad y alcance
 
@@ -356,8 +359,8 @@ Esta temporización expresa la acción futura requerida. La arquitectura de
 Fase 2.1 permite representarla mediante ScheduledAction sin fijar anticipadamente
 una Quantity; OrderIntent queda reservado para una orden ya concreta.
 Fase 3B-2B implementa señales y esta temporización, sin Quantity ni ejecución.
-Pausa, invalidación explícita o contexto incompatible cancelan la entrada. Una
-acción elegible queda bloqueada hasta 3B-2C; no se simula Base ni Fill.
+Pausa, invalidación explícita o contexto incompatible cancelan la entrada. En 3B-2C-1 una
+acción válida autorizada produce intención Base teórica; no se simula ningún Fill.
 
 ## 12. PAUSE, RESUME y cambio de capital
 

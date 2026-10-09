@@ -1,4 +1,4 @@
-# Coordinación por eventos y acciones programadas — Fase 3B-2B
+# Coordinación por eventos y acciones programadas — Fase 3B-2C-1
 
 ```text
 Candle / Quote / Order / Fill + Order / ScheduledAction + Quote
@@ -120,7 +120,8 @@ elegibilidad descrita arriba. No se define aún una política de frescura de mer
 Una señal en T puede producir una ScheduledAction sin Quantity para T + delay.
 La reevaluación con el Quote futuro puede producir una OrderIntent con Quantity
 concreta en una implementación posterior. El coordinador no fija delays.
-AltBEngine añade +120s a sus acciones en 3B-2B, sin ejecutar Base:
+AltBEngine añade +120s a sus acciones; 3B-2C-1 emite intención Base teórica
+y recibe hechos Order/Fill, sin invocar riesgo ni adaptadores:
 [ALT_B_SIGNALS.md](ALT_B_SIGNALS.md).
 
 ## Quote, Fill y causalidad de precios
@@ -150,9 +151,11 @@ reintentos, persistencia o política
 de ejecución. El llamador gestiona la secuencia y conserva el estado.
 
 Riesgo y ejecución siguen siendo pasos posteriores separados. AltBEngine integra
-señales y scheduling con estado explícito, sin ejecución ni modos operativos;
+señales, scheduling e intención Base con evidencia Order/Fill, sin ejecución ni modos operativos;
 runtime sigue STOPPED. Su snapshot conserva reserva y watermark para impedir
-duplicados, cancelar entradas y bloquear la ejecución pendiente de 3B-2C.
+duplicados, cancelar entradas y conservar la Base consumida. Los hechos tardíos
+se concilian dentro del motor; no cambian contratos genéricos.
+Ver [ALT_B_BASE_FILLS.md](ALT_B_BASE_FILLS.md).
 
 ## Política de identidad — Fase 2.2
 

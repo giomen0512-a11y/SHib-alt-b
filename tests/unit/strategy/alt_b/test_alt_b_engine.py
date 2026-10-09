@@ -26,7 +26,6 @@ from trading_engine.strategy.alt_b.entry import EntryEvaluation, evaluate_entry_
 from trading_engine.strategy.alt_b.events.engine import AltBEngine
 from trading_engine.strategy.alt_b.events.state import (
     ACTION_KIND,
-    BASE_EXECUTION_PENDING,
     ENTRY_DELAY,
     SIGNAL_KIND,
     AltBStrategyState,
@@ -285,7 +284,7 @@ def test_before_120_seconds_is_rejected_by_coordinator_and_engine(
     assert state_of(first.state).pending_entry == PendingEntry(first.signals[0], action)
 
 
-def test_exact_120_seconds_due_preserves_reservation_without_execution(
+def test_exact_120_seconds_due_consumes_action_with_one_theoretical_intent(
     history: tuple[Candle, ...],
 ) -> None:
     coordinator, first = signalled(history)
@@ -294,12 +293,14 @@ def test_exact_120_seconds_due_preserves_reservation_without_execution(
     assert due.due_actions == (action,) and not due.state.pending_actions
     assert due.state.strategy_state is first.state.strategy_state
     result = coordinator.on_scheduled_action(due.state, action, quote_at(action.not_before))
-    assert not result.signals and not result.order_intents and not result.state.pending_actions
-    pending = state_of(result.state).pending_entry
-    assert pending is not None and pending.evaluated_at == action.not_before
-    assert state_of(result.state).block_reason == BASE_EXECUTION_PENDING
+    assert not result.signals and len(result.order_intents) == 1
+    assert not result.state.pending_actions and state_of(result.state).pending_entry is None
+    base = state_of(result.state).base
+    assert base is not None and base.intent == result.order_intents[0]
+    assert base.action == action and base.intent.created_at == action.not_before
+    assert base.order is None and base.fills == () and base.p0 is None
     retry = coordinator.on_scheduled_action(result.state, action, quote_at(action.not_before))
-    assert retry == result
+    assert retry.state == result.state and not retry.order_intents
 
 
 def test_pause_during_wait_cancels_queue_and_resume_never_runs_old_signal(
@@ -392,10 +393,9 @@ def test_snapshot_reconstruction_and_same_engine_reuse_are_deterministic(
         result = StrategyCoordinator(engine).on_scheduled_action(
             due.state, action, quote_at(action.not_before)
         )
-        assert (
-            not result.order_intents
-            and state_of(result.state).block_reason == BASE_EXECUTION_PENDING
-        )
+        assert len(result.order_intents) == 1
+        assert state_of(result.state).base is not None
+        assert state_of(result.state).block_reason == "base_order_pending"
     assert tuple(f.name for f in fields(engine)) == ("config",)
 
 
@@ -538,7 +538,7 @@ def test_blocked_checkpoint_duplicate_preserves_reason_and_state(
 
 
 @pytest.mark.parametrize("event", ["order", "fill"])
-def test_execution_observation_is_fail_closed_without_simulating_reconciliation(
+def test_execution_without_base_reservation_is_fail_closed(
     history: tuple[Candle, ...], event: str
 ) -> None:
     coordinator, first = signalled(history)
@@ -563,7 +563,7 @@ def test_execution_observation_is_fail_closed_without_simulating_reconciliation(
         result = coordinator.on_fill(first.state, fill, order)
     assert not result.order_intents and not result.signals and not result.state.pending_actions
     assert not state_of(result.state).allow_entries and state_of(result.state).pending_entry is None
-    assert state_of(result.state).block_reason == "execution_reconciliation_not_implemented_3b_2c"
+    assert state_of(result.state).block_reason == "execution_without_base_reservation"
 
 
 @pytest.mark.parametrize("event", ["control", "cancel", "quote"])
@@ -617,4 +617,7 @@ def test_every_evaluation_uses_only_causal_prefix_and_never_quote_prices(
     )
     due = coordinator.advance_time(result.state, action.not_before)
     evaluated = coordinator.on_scheduled_action(due.state, action, quote)
-    assert seen == [action.created_at] and not evaluated.order_intents
+    assert seen == [action.created_at] and len(evaluated.order_intents) == 1
+    base = state_of(evaluated.state).base
+    assert base is not None and base.reference_quote == quote
+    assert base.fills == () and base.p0 is None
