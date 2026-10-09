@@ -37,13 +37,13 @@ SimulationPolicy frozen contiene ExecutionPolicy de 4A-2A y requiere:
 | Campo | Contrato |
 | --- | --- |
 | acceptance_latency_ms | Entero positivo; demora emisión→aceptación/rechazo |
-| execution_delay_ms | Entero positivo; demora mínima aceptación→elegibilidad |
+| execution_delay_ms | Entero positivo; demora mínima aceptación→elegibilidad y cierre de evaluación→resolución del remanente MARKET |
 | cancellation_latency_ms | Entero positivo; solicitud recibida→confirmación terminal |
 | delivery_latency_ms | Entero no negativo; ocurrencia→disponibilidad al motor |
 | queue | WITHHOLD_WITHOUT_QUEUE_EVIDENCE o ASSUME_SHARED_VOLUME_BUDGET_FIFO |
 | acceptance | ACCEPT_SUPPORTED_OFFLINE o REJECT_ALL_MODELED |
 | assumptions | Explicación obligatoria de supuestos y límites |
-| rules_version | Versión implementada closed-minute-shared-budget-v1 |
+| rules_version | Versión implementada closed-minute-shared-budget-market-once-v2 |
 
 No hay defaults numéricos ni supuestos calibrados de Binance. Se rechazan bool,
 float, negativos, duraciones no representables y versiones no implementadas.
@@ -76,6 +76,7 @@ anterior a emitted_at; la orden solo existe desde emitted_at, nunca retrospectiv
 acceptance_at = emitted_at + acceptance_latency_ms
 eligible_from = acceptance_at + execution_delay_ms
 cancel_confirm_at = cancel_received_at + cancellation_latency_ms
+market_resolve_at = market_evaluated_at + execution_delay_ms  # solo si queda remanente
 received_at = ocurrencia + delivery_latency_ms
 ```
 
@@ -91,7 +92,7 @@ Se conserva el orden anterior de controles/hechos externos, cierre/gap y accione
 T+120. Nuevos puntos explícitos:
 
 1. Entregar controles y hechos externos como antes.
-2. Procesar transiciones de aceptación/cancelación y entregas modeladas ya vencidas,
+2. Procesar transiciones de aceptación/cancelación/resolución MARKET y entregas modeladas ya vencidas,
    antes del cierre. Cancelación precede a aceptación si coinciden para una orden.
 3. Procesar Candle/gap con el motor; evaluar órdenes existentes sobre la vela cerrada.
 4. Entregar evidencia recién generada si su delivery ya venció.
@@ -122,8 +123,42 @@ Solo se recibe una intención que AltBEngine emitió después de su acción T+12
 Se exige aceptación, ventana temporal completa, Quote del instante evaluado,
 símbolo correcto, vigencia/política coincidentes para ModeledQuoteEvidence,
 cota de volumen y hipótesis de cola permitida. Sin Quote válida, no hay Fill.
-La ausencia conserva la orden abierta y motivo; se reevalúa en otra vela completa,
-sin trasladar ni reactivar una acción estratégica que el runner invalidó.
+
+**Oportunidad única:** se evalúa solamente al cierre del primer intervalo completo
+elegible, incluso si falta la vela (gap). Se marca `market_evaluated_at` antes de
+intentar ejecutar. Esa marca impide cualquier otra ejecución en minutos posteriores,
+también mientras está pendiente su resolución terminal. No se traslada ni reactiva
+una acción estratégica que el runner invalidó.
+
+- Capacidad suficiente y condiciones válidas: un Fill y Order FILLED; sin resolución adicional.
+- Capacidad parcial bajo la política explícita: un Fill, Order PARTIALLY_FILLED y remanente pendiente de resolución.
+- Sin Quote, volumen, cola asumida o condiciones suficientes: cero Fill y remanente pendiente de resolución; motivo explícito.
+
+En los dos últimos casos el simulador programa `market_expire` para
+`market_evaluated_at + execution_delay_ms`. Es una transición positiva y
+determinista del modelo a Order CANCELED, que conserva exactamente la cantidad
+realmente modelada. El mismo parámetro obligatorio se utiliza para ambas demoras;
+no se introduce otra latencia numérica oculta. El Order parcial y el terminal
+tienen distintos `updated_at`; el Fill conserva su timestamp de evaluación,
+su cantidad e identidad originales. La entrega al motor añade únicamente
+`delivery_latency_ms`.
+
+La resolución no inventa una OrderCancelRequest de la estrategia: audit distingue
+`market_opportunity`, `market_remainder_pending` y `market_expired`; las métricas
+de solicitudes/confirmaciones de cancelación siguen contando las solicitudes
+efectivamente recibidas. Una cancelación externa simultánea conserva su prioridad
+y solo se emite un snapshot terminal; la resolución no reabre órdenes terminales.
+
+Base parcial seguida de CANCELED conserva el bloqueo existente
+`base_shortfill_reconciliation`: hay cantidad y precio promedio derivados de su
+Fill, pero no P0 definitivo ni DCA/TP. Base sin ningún Fill termina cancelada con
+el bloqueo existente `base_order_canceled`. El simulador no calcula P0 desde
+la cantidad solicitada ni completa artificialmente Base.
+
+Esta vida MARKET acotada es una **hipótesis de simulación offline**, no una
+reproducción certificada del matching engine de Binance ni una afirmación sobre
+su política real de remanentes. Las órdenes LIMIT conservan su reevaluación causal
+en velas posteriores y las cancelaciones TP conservan su política anterior.
 
 ```text
 precio BUY MARKET = Quote.ask × (1 + slippage_bps/10000)
@@ -220,6 +255,9 @@ Namespace exclusivamente simulado: `4d2fb073-3734-51d0-8a5a-a2c14bbb2f53`.
 UUIDv5 OrderId incorpora identidad completa del simulador e IntentId; FillId añade
 OrderId y cierre UTC del minuto. A lo sumo un Fill por orden/minuto; misma ejecución
 fragmentada conserva IDs. No hay uuid4, datetime.now, reloj real ni random.
+Para MARKET hay como máximo un Fill por orden durante toda su vida.
+La versión v2 forma parte de la identidad: cambian las identidades respecto a v1
+y se rechaza su restauración, sin reinterpretar silenciosamente ejecuciones anteriores.
 IntentId idéntica/contenido idéntico es idempotente; contenido distinto interrumpe.
 Repetir una cancelación exacta o última vela exacta no duplica cantidades.
 Cancelación/minuto conflictivos se rechazan sin sobrescribir. Los Fill no pueden
@@ -232,12 +270,17 @@ política/perfil, órdenes/intenciones, aceptación/elegibilidad, fills, cancela
 transiciones futuras, entregas futuras, archivo de hechos generados, audit,
 cotas/asignaciones de liquidez, secuencia y cursor de minutos. Todo entra en su
 checksum integral. La huella encadena identidad, hechos y decisiones técnicas.
+También se conservan `market_evaluated_at`, `market_resolve_at`,
+`market_resolved_at` y la transición terminal pendiente. La validación exige la
+primera ventana elegible, un único Fill como máximo y la resolución programada
+o ya consumida coherente. LIMIT no admite estos campos MARKET.
 Restaurar exige mismas reglas/parámetros, fuentes/dataset y sesión SQLite;
 se validan además IDs, cantidades, timestamps, procedencia y cotas.
 
 Continuo == fragmentado incluye estado estratégico y simulado, IDs, fills,
 cancelaciones, emisiones, métricas, bloqueos y SHA-256. Se prueban checkpoints
-subminuto, aceptación no entregada y cancelación pendiente. No hay serialización,
+subminuto, aceptación no entregada y cancelación pendiente, junto con checkpoints
+antes/después de resolver un remanente MARKET y con entrega diferida. No hay serialización,
 journal, recovery entre procesos o LIVE. La evidencia crece con la sesión en
 memoria; no se presenta como almacenamiento persistente para varios años.
 

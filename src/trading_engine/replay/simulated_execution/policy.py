@@ -30,14 +30,14 @@ class SimulationPolicy:
     queue: QueuePolicy
     acceptance: AcceptancePolicy
     assumptions: str
-    rules_version: str = "closed-minute-shared-budget-v1"
+    rules_version: str = "closed-minute-shared-budget-market-once-v2"
 
     def __post_init__(self) -> None:
         require_type(self.pricing, ExecutionPolicy, "pricing")
         require_type(self.queue, QueuePolicy, "queue")
         require_type(self.acceptance, AcceptancePolicy, "acceptance")
         nonblank(self.assumptions, "assumptions")
-        if self.rules_version != "closed-minute-shared-budget-v1":
+        if self.rules_version != "closed-minute-shared-budget-market-once-v2":
             raise ValueError("Versión de simulación no implementada")
         for name in (
             "acceptance_latency_ms",

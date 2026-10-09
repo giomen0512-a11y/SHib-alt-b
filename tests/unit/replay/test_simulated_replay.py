@@ -31,6 +31,8 @@ from .test_simulated_execution import simulation_policy
 
 def round_candles(candles: tuple[Candle, ...], *, old_tp_fill: bool = False) -> tuple[Candle, ...]:
     result = list(c for c in candles if c.close_time <= DUE + timedelta(minutes=2))
+    # La Base completa debe tener capacidad suficiente en su única oportunidad.
+    result[-1] = replace(result[-1], volume=Decimal("1000"), taker_buy_base_volume=Decimal("500"))
     first = result[-1]
     # OHLC planos: no se fabrica recorrido. DCA1 y TP requieren varios fills.
     prices = [
@@ -55,7 +57,7 @@ def round_candles(candles: tuple[Candle, ...], *, old_tp_fill: bool = False) -> 
         "102",
     ]
     if old_tp_fill:
-        prices[3] = "102"  # TP viejo activo antes de confirmar su cancelación
+        prices[2] = "102"  # TP viejo activo antes de confirmar su cancelación
     for index, value in enumerate(prices):
         at = first.close_time + timedelta(minutes=index + 1)
         volume = Decimal("10") if index in {1, 2, 3, 4, 13} else Decimal("1000")
@@ -145,6 +147,7 @@ def test_complete_base_seven_dcas_dynamic_tp_and_closed_round(
     assert strategy.base is None and strategy.round_state is None
     assert len(strategy.round_history) == 1
     record = strategy.round_history[0]
+    assert len(record.base.fills) == 1
     assert record.round_state.status(record.base) == "CLOSED"
     assert record.round_state.quantity_open(record.base) == 0
     assert all(
@@ -295,14 +298,14 @@ def test_old_tp_partial_fill_before_cancel_confirmation_and_single_replacement(
     facts = FixtureFacts((ReplayFact(DUE + timedelta(seconds=1), EntryControl(False), 0),))
     with SQLiteHistory(path) as history:
         runner = setup(history, p, request, facts)
-        report = runner.run(DUE + timedelta(minutes=6))
+        report = runner.run(DUE + timedelta(minutes=5))
         assert report.interruption is None and report.simulation is not None
         old = next(o for o in report.simulation.orders if o.order.intent.reduce_only)
         assert old.cancellation is not None and old.cancel_confirmed_at is None
         assert old.order.status is OrderStatus.PARTIALLY_FILLED
         assert old.fills[0].timestamp < old.cancel_confirm_at  # type: ignore[operator]
         assert sum(o.order.intent.reduce_only for o in report.simulation.orders) == 1
-        report = runner.run(DUE + timedelta(minutes=7))
+        report = runner.run(DUE + timedelta(minutes=6))
         assert report.interruption is None and report.simulation is not None
         old = (
             report.simulation.orders[report.simulation.orders.index(old)]

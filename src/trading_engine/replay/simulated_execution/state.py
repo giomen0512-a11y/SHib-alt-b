@@ -29,6 +29,9 @@ class SimulatedOrder:
     cancel_received_at: datetime | None = None
     cancel_confirm_at: datetime | None = None
     cancel_confirmed_at: datetime | None = None
+    market_evaluated_at: datetime | None = None
+    market_resolve_at: datetime | None = None
+    market_resolved_at: datetime | None = None
 
     @property
     def remaining(self) -> Decimal:
@@ -40,7 +43,7 @@ class SimulatedOrder:
 class Transition:
     at: datetime
     intent_id: IntentId
-    kind: Literal["accept", "cancel"]
+    kind: Literal["accept", "cancel", "market_expire"]
     sequence: int
 
 

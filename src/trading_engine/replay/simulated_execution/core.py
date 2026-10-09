@@ -213,6 +213,20 @@ class SimulatedExecution:
                 state = self._audit(
                     state, at, "cancel_confirmed", "final_quantity_known", transition.intent_id
                 )
+            elif transition.kind == "market_expire":
+                if leg.order.status not in TERMINAL:
+                    order = replace(leg.order, status=OrderStatus.CANCELED, updated_at=at)
+                    leg = replace(leg, order=order)
+                    state = self._fact(state, order, at)
+                leg = replace(leg, market_resolved_at=at)
+                state = self._put(state, leg)
+                state = self._audit(
+                    state,
+                    at,
+                    "market_expired",
+                    "single_opportunity_remainder_resolved",
+                    transition.intent_id,
+                )
             elif leg.order.status not in TERMINAL:
                 intent = leg.order.intent
                 supported = intent.symbol == DEFAULT_SYMBOL and (
@@ -309,6 +323,33 @@ class SimulatedExecution:
             # Slippage restringe la elegibilidad; no se vuelve a cargar al límite.
             return intent.limit_price, "limit_with_queue_and_volume_assumptions"
 
+    def _consume_market(
+        self, state: ExecutionState, leg: SimulatedOrder, at: datetime
+    ) -> ExecutionState:
+        leg = replace(leg, market_evaluated_at=at)
+        state = self._put(state, leg)
+        return self._audit(
+            state, at, "market_opportunity", "single_causal_opportunity", leg.order.intent_id
+        )
+
+    def _resolve_market_remainder(
+        self, state: ExecutionState, intent_id: IntentId, at: datetime
+    ) -> ExecutionState:
+        leg = self._find(state, intent_id)
+        if leg.order.status in TERMINAL:
+            return state
+        resolution = after(at, self.policy.execution_delay_ms)
+        state = self._put(state, replace(leg, market_resolve_at=resolution))
+        state = replace(
+            state,
+            transitions=state.transitions
+            + (Transition(resolution, intent_id, "market_expire", state.sequence),),
+            sequence=state.sequence + 1,
+        )
+        return self._audit(
+            state, at, "market_remainder_pending", "awaiting_modeled_expiry", intent_id
+        )
+
     def candle(self, state: ExecutionState, candle: Candle | None, at: datetime) -> ExecutionState:
         state = self._time(state, at)
         minute_ms(at)
@@ -328,9 +369,20 @@ class SimulatedExecution:
         ):
             raise ValueError("Vela futura/inválida para ejecución")
         state = replace(state, last_minute_at=at)
-        active = [o for o in state.orders if o.order.status not in TERMINAL]
+        active = [
+            o
+            for o in state.orders
+            if o.order.status not in TERMINAL and o.market_evaluated_at is None
+        ]
         if candle is None:
             for leg in active:
+                if (
+                    leg.order.intent.order_type is OrderType.MARKET
+                    and leg.accepted_at is not None
+                    and leg.eligible_from <= at - MINUTE
+                ):
+                    state = self._consume_market(state, leg, at)
+                    state = self._resolve_market_remainder(state, leg.order.intent_id, at)
                 state = self._audit(state, at, "no_execution", "gap", leg.order.intent_id)
             return state
         with localcontext(price_context()):
@@ -384,6 +436,10 @@ class SimulatedExecution:
 
         for original in sorted(eligible, key=priority):
             leg = self._find(state, original.order.intent_id)
+            market = leg.order.intent.order_type is OrderType.MARKET
+            if market:
+                state = self._consume_market(state, leg, at)
+                leg = self._find(state, leg.order.intent_id)
             hypothesis = ambiguous_rounds.get(leg.order.round_id, "NO_SEQUENCE_ASSUMED")
             price, reason = self._price(leg, candle, quote)
             if leg.order.round_id in ambiguous_rounds and hypothesis == "NO_SEQUENCE_ASSUMED":
@@ -453,6 +509,8 @@ class SimulatedExecution:
                     )
                     state = replace(state, liquidity=state.liquidity[:-1] + (budget,))
                     state = self._fact(state, FillEvidence(fill, order), at)
+            if market:
+                state = self._resolve_market_remainder(state, leg.order.intent_id, at)
             state = self._audit(
                 state,
                 at,
@@ -476,6 +534,56 @@ class SimulatedExecution:
         if len({f.fill_id for f in fills}) != len(fills):
             raise ValueError("FillId duplicado/conflictivo")
         for leg in state.orders:
+            if leg.order.intent.order_type is OrderType.MARKET:
+                if len(leg.fills) > 1:
+                    raise ValueError("MARKET no permite múltiples oportunidades")
+                if leg.market_evaluated_at is not None:
+                    evaluated = leg.market_evaluated_at
+                    minute_ms(evaluated)
+                    if (
+                        leg.accepted_at is None
+                        or not evaluated - 2 * MINUTE < leg.eligible_from <= evaluated - MINUTE
+                        or evaluated > at
+                        or any(f.timestamp != evaluated for f in leg.fills)
+                    ):
+                        raise ValueError("Oportunidad MARKET no causal")
+                    if leg.market_resolve_at is not None:
+                        if leg.market_resolve_at != after(
+                            evaluated, self.policy.execution_delay_ms
+                        ):
+                            raise ValueError("Resolución MARKET fuera de su transición")
+                        pending = [
+                            t
+                            for t in state.transitions
+                            if t.intent_id == leg.order.intent_id and t.kind == "market_expire"
+                        ]
+                        if leg.market_resolved_at is None:
+                            if len(pending) != 1 or pending[0].at != leg.market_resolve_at:
+                                raise ValueError("Snapshot perdió la transición terminal MARKET")
+                        elif (
+                            leg.market_resolved_at != leg.market_resolve_at
+                            or leg.market_resolved_at > at
+                            or pending
+                            or leg.order.status not in TERMINAL
+                        ):
+                            raise ValueError("Resolución terminal MARKET incompatible")
+                    elif leg.order.status is not OrderStatus.FILLED or leg.market_resolved_at:
+                        raise ValueError("Remanente MARKET sin resolución")
+                elif (
+                    leg.fills
+                    or leg.market_resolve_at is not None
+                    or leg.market_resolved_at is not None
+                ):
+                    raise ValueError("MARKET ejecutada sin oportunidad registrada")
+            elif any(
+                value is not None
+                for value in (
+                    leg.market_evaluated_at,
+                    leg.market_resolve_at,
+                    leg.market_resolved_at,
+                )
+            ):
+                raise ValueError("LIMIT no admite estado de vida MARKET")
             expected_id = uuid5(
                 SIMULATION_NAMESPACE, self.identity + ":order:" + str(leg.order.intent_id)
             )

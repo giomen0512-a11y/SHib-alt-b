@@ -4,6 +4,12 @@ Base: `7fbc249ab532d9c21b4b72e67436caa1ce14e7ee`.
 Feature: `phase-4a-2b-simulated-execution`.
 Especificación: [SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md).
 
+Este informe conserva la evidencia de la entrega inicial v1
+(`5e0bec5345504fe4a84b60d37c6ccd222d418726`), incluidos sus resultados y fixture
+de Base persistente. El ciclo MARKET fue corregido posteriormente a una única
+oportunidad: véase [PHASE_4A_2B_MARKET_FIX_REPORT.md](PHASE_4A_2B_MARKET_FIX_REPORT.md)
+y la especificación vigente. Sus métricas/huella anteriores no describen el replay v2.
+
 ## 1. Arquitectura
 
 SimulatedExecution independiente de estrategia/adaptadores recibe las intenciones
