@@ -1,0 +1,30 @@
+[Unit]
+Description=SHib initial public Futures history (manual start)
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/SHib-alt-b
+Environment=TRADING_MODE=STOPPED
+EnvironmentFile=/etc/shib-alt-b/data.env
+ExecStartPre=/usr/bin/test -s ${SHIB_DATA_DB}
+ExecStart=/home/ubuntu/SHib-alt-b/.venv/bin/python -m trading_engine.market_data.cli history-run --db-path ${SHIB_DATA_DB} --publication-delay-seconds ${SHIB_DATA_DELAY_SECONDS} --min-free-mib ${SHIB_DATA_RESERVE_MIB} --request-interval-seconds ${SHIB_DATA_REQUEST_INTERVAL_SECONDS}
+TimeoutStartSec=infinity
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=60
+RestartPreventExitStatus=1 2 73
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/shib-alt-b
+MemoryMax=768M
+CPUQuota=100%
+StandardOutput=journal
+StandardError=journal

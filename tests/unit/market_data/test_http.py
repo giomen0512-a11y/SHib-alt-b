@@ -1,5 +1,6 @@
 import io
 import json
+import ssl
 from email.message import Message
 from http.client import HTTPMessage
 from pathlib import Path
@@ -95,6 +96,30 @@ def test_no_retry_for_access_or_missing_file(code: int, monkeypatch: pytest.Monk
     with pytest.raises(HTTPError):
         PublicHTTP(sleeper=lambda _: None).text(REST_BASE)
     assert count == 1
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        OSError("Tunnel connection failed: 403 Forbidden"),
+        OSError("Tunnel connection failed: 451 Unavailable"),
+        ssl.SSLCertVerificationError("fixture invalid certificate"),
+    ],
+)
+def test_proxy_denial_and_invalid_tls_fail_without_retry(
+    reason: OSError, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+    sleeps: list[int] = []
+
+    def failing(request: Request, timeout: int) -> Response:
+        calls.append(request.full_url)
+        raise URLError(reason)
+
+    monkeypatch.setattr(http_module, "open_official", failing)
+    with pytest.raises(URLError):
+        PublicHTTP(sleeper=sleeps.append).text(REST_BASE)
+    assert len(calls) == 1 and not sleeps
 
 
 @pytest.mark.parametrize(

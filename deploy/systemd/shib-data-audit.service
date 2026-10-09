@@ -1,0 +1,24 @@
+[Unit]
+Description=SHib full public Futures SQLite audit
+After=shib-data-update.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/SHib-alt-b
+Environment=TRADING_MODE=STOPPED
+EnvironmentFile=/etc/shib-alt-b/data.env
+ExecStartPre=/usr/bin/test -s ${SHIB_DATA_DB}
+ExecStart=/home/ubuntu/SHib-alt-b/.venv/bin/python -m trading_engine.market_data.cli audit-full --db-path ${SHIB_DATA_DB} --publication-delay-seconds ${SHIB_DATA_DELAY_SECONDS} --min-free-mib ${SHIB_DATA_RESERVE_MIB}
+TimeoutStartSec=30min
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/shib-alt-b
+MemoryMax=768M
+CPUQuota=100%
+StandardOutput=journal
+StandardError=journal

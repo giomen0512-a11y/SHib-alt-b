@@ -8,10 +8,17 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
+from urllib.error import HTTPError, URLError
 
 from trading_engine.binance.klines import DEFAULT_SYMBOL, LAUNCH, MARKET, from_ms, reference_ms
-from trading_engine.binance.public_data import PublicHTTP
+from trading_engine.binance.public_data import PublicHTTP, transient_http_error
 from trading_engine.market_data.audit import AuditReport, audit
+from trading_engine.market_data.collector import (
+    CollectorConfig,
+    collector_status,
+    eligible_end,
+    run_collection,
+)
 from trading_engine.market_data.history import (
     Archive,
     backfill,
@@ -22,6 +29,7 @@ from trading_engine.market_data.history import (
     validate_range,
 )
 from trading_engine.models.values import Symbol
+from trading_engine.persistence.data_safety import IngestionBusy
 from trading_engine.persistence.futures_sqlite import FuturesSQLite, Source
 from trading_engine.utils.time import require_utc
 
@@ -44,9 +52,27 @@ def parser() -> argparse.ArgumentParser:
         "recover-range",
         "audit",
         "status",
+        "history-run",
+        "update-once",
+        "audit-full",
+        "collector-status",
+        "backup",
     ):
         command = commands.add_parser(name)
-        command.add_argument("--db-path", type=Path, default=Path("data/futures.sqlite3"))
+        autonomous = name in {
+            "history-run",
+            "update-once",
+            "audit-full",
+            "collector-status",
+            "backup",
+        }
+        command.add_argument(
+            "--db-path",
+            type=Path,
+            default=Path(
+                "/var/lib/shib-alt-b/futures.sqlite3" if autonomous else "data/futures.sqlite3"
+            ),
+        )
         command.add_argument("--symbol", default=DEFAULT_SYMBOL.value)
         command.add_argument(
             "--start",
@@ -62,6 +88,13 @@ def parser() -> argparse.ArgumentParser:
             help="Referencia UTC explícita; por defecto reloj UTC del operador",
         )
         command.add_argument("--dry-run", action="store_true")
+        if autonomous:
+            command.add_argument("--publication-delay-seconds", type=int, default=5)
+            command.add_argument("--max-update-minutes", type=int, default=1500)
+            command.add_argument("--min-free-mib", type=int, default=512)
+            command.add_argument("--request-interval-seconds", type=int, default=1)
+            if name == "backup":
+                command.add_argument("--backup-path", type=Path, required=True)
         if name == "import-archive":
             command.add_argument("--archive-file", type=Path, required=True)
             command.add_argument("--source", choices=["monthly", "daily"], required=True)
@@ -82,6 +115,50 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     try:
+        actions = {
+            "history-run": "history",
+            "update-once": "update",
+            "audit-full": "audit",
+            "backup": "backup",
+        }
+        if args.command in {*actions, "collector-status"}:
+            if args.start is not None and args.start != LAUNCH:
+                raise ValueError("Fase Datos 2 conserva el inicio oficial 2024-03-28T07:00:00Z")
+            config = CollectorConfig(
+                args.db_path,
+                Symbol(args.symbol),
+                args.publication_delay_seconds,
+                args.max_update_minutes,
+                args.min_free_mib * 1024**2,
+                args.request_interval_seconds,
+            )
+            if args.dry_run:
+                now = args.as_of or datetime.now(UTC)
+                print(
+                    json.dumps(
+                        {
+                            "command": args.command,
+                            "dry_run": True,
+                            "db_path": str(config.db_path),
+                            "symbol": config.symbol.value,
+                            "start": LAUNCH.isoformat(),
+                            "eligible_end": eligible_end(config, now).isoformat(),
+                        }
+                    )
+                )
+                return 0
+            if args.command == "collector-status":
+                result = collector_status(config, as_of=args.as_of)
+            else:
+                result = run_collection(
+                    config,
+                    actions[args.command],
+                    as_of=args.as_of,
+                    end=args.end,
+                    backup_path=getattr(args, "backup_path", None),
+                )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["complete"] else 2
         symbol = Symbol(args.symbol)
         as_of = args.as_of or datetime.now(UTC)
         start = args.start or LAUNCH
@@ -94,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             end = args.end or archive.end
         validate_range(symbol, start, end, as_of)
-        result: dict[str, object] = {
+        result = {
             "command": args.command,
             "market": MARKET,
             "symbol": symbol.value,
@@ -164,6 +241,10 @@ def main(argv: list[str] | None = None) -> int:
             ),
             file=sys.stderr,
         )
+        if isinstance(exc, IngestionBusy):
+            return 73
+        if isinstance(exc, (HTTPError, URLError, TimeoutError, ConnectionError)):
+            return 75 if transient_http_error(exc) else 1
         return 1
 
 

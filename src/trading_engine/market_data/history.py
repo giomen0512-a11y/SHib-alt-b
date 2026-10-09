@@ -214,6 +214,8 @@ def download_archive(
     start: datetime,
     end: datetime,
     as_of: datetime,
+    *,
+    require_checksum: bool = False,
 ) -> bool:
     key = f"{archive.filename}#{minute_ms(start)}:{minute_ms(end)}"
     if store.verified(key):
@@ -227,6 +229,8 @@ def download_archive(
             except HTTPError as exc:
                 if exc.code != 404:
                     raise
+                if require_checksum:
+                    raise ValueError("CHECKSUM oficial requerido; archivo no verificable") from exc
                 checksum = None
         except HTTPError as exc:
             if exc.code != 404:
@@ -262,6 +266,8 @@ def sync_range(
     *,
     as_of: datetime,
     limit: int = 1500,
+    check_database: bool = True,
+    require_taker_buy: bool = False,
 ) -> AuditReport:
     """Recovery real del rango explícito; los gaps nunca se interpolan."""
     validate_range(symbol, start, end, as_of)
@@ -328,7 +334,15 @@ def sync_range(
             as_of=as_of,
         )
         cursor = to_ms(candles[-1].close_time)
-    return audit(store, symbol, start, end, as_of=as_of)
+    return audit(
+        store,
+        symbol,
+        start,
+        end,
+        as_of=as_of,
+        check_database=check_database,
+        require_taker_buy=require_taker_buy,
+    )
 
 
 def sync_once(
@@ -362,23 +376,41 @@ def backfill(
     end: datetime,
     *,
     as_of: datetime,
+    require_checksum: bool = False,
+    check_database: bool = True,
 ) -> AuditReport:
     for archive in plan_archives(symbol, start, end, as_of=as_of):
         lower, upper = max(start, archive.start), min(end, archive.end)
-        if download_archive(store, client, archive, lower, upper, as_of):
+        if download_archive(
+            store, client, archive, lower, upper, as_of, require_checksum=require_checksum
+        ):
             continue
         if archive.source is Source.MONTHLY:
             day = lower.replace(hour=0, minute=0)
             while day < upper:
                 daily = Archive(symbol, day.strftime("%Y-%m-%d"), Source.DAILY)
                 download_archive(
-                    store, client, daily, max(lower, day), min(upper, daily.end), as_of
+                    store,
+                    client,
+                    daily,
+                    max(lower, day),
+                    min(upper, daily.end),
+                    as_of,
+                    require_checksum=require_checksum,
                 )
                 day += timedelta(days=1)
     # REST solo para intervalos que siguen ausentes; no repite archivos mensuales verificados.
-    report = audit(store, symbol, start, end, as_of=as_of)
+    report = audit(store, symbol, start, end, as_of=as_of, check_database=check_database)
     if report.errors:
         raise ValueError(f"Histórico inválido: {report.errors}")
     for gap in report.gaps:
-        sync_range(store, client, symbol, from_ms(gap.start_ms), from_ms(gap.end_ms), as_of=as_of)
-    return audit(store, symbol, start, end, as_of=as_of)
+        sync_range(
+            store,
+            client,
+            symbol,
+            from_ms(gap.start_ms),
+            from_ms(gap.end_ms),
+            as_of=as_of,
+            check_database=check_database,
+        )
+    return audit(store, symbol, start, end, as_of=as_of, check_database=check_database)

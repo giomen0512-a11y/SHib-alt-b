@@ -23,6 +23,7 @@ from trading_engine.binance.klines import (
 )
 from trading_engine.models.market import Candle
 from trading_engine.models.values import Price, Symbol
+from trading_engine.persistence.data_safety import exclusive_database
 from trading_engine.utils.time import require_utc
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,40 @@ CREATE TABLE IF NOT EXISTS import_manifest (
  processed_rows INTEGER NOT NULL, processed_at_utc TEXT NOT NULL,
  error TEXT
 ) STRICT;
+CREATE INDEX IF NOT EXISTS import_state ON import_manifest(state);
+CREATE INDEX IF NOT EXISTS import_processed ON import_manifest(processed_at_utc DESC);
+CREATE TABLE IF NOT EXISTS collector_state (
+ market TEXT NOT NULL, symbol TEXT NOT NULL, start_ms INTEGER NOT NULL,
+ validated_end_ms INTEGER NOT NULL, ready INTEGER NOT NULL DEFAULT 0,
+ last_attempt_utc TEXT, last_success_utc TEXT, last_action TEXT,
+ last_state TEXT NOT NULL DEFAULT 'new', last_error TEXT,
+ audit_at_utc TEXT, audit_complete INTEGER NOT NULL DEFAULT 0,
+ audit_end_ms INTEGER, PRIMARY KEY(market, symbol)
+) STRICT;
+CREATE TABLE IF NOT EXISTS collector_gaps (
+ market TEXT NOT NULL, symbol TEXT NOT NULL, start_ms INTEGER NOT NULL,
+ end_ms INTEGER NOT NULL CHECK(end_ms > start_ms), PRIMARY KEY(market, symbol, start_ms)
+) STRICT;
+CREATE TABLE IF NOT EXISTS collector_errors (
+ market TEXT NOT NULL, symbol TEXT NOT NULL, action TEXT NOT NULL,
+ error TEXT NOT NULL, at_utc TEXT NOT NULL, PRIMARY KEY(market, symbol, action)
+) STRICT;
+CREATE TRIGGER IF NOT EXISTS invalidate_collector_update AFTER UPDATE ON futures_klines_1m
+BEGIN
+ UPDATE collector_state SET ready=0, audit_complete=0, last_error='Cambio externo de velas: auditar'
+ WHERE market=OLD.market AND symbol=OLD.symbol;
+END;
+CREATE TRIGGER IF NOT EXISTS invalidate_collector_delete AFTER DELETE ON futures_klines_1m
+BEGIN
+ UPDATE collector_state SET ready=0, audit_complete=0,
+ last_error='Borrado externo de velas: auditar'
+ WHERE market=OLD.market AND symbol=OLD.symbol;
+END;
+CREATE TRIGGER IF NOT EXISTS invalidate_collector_insert AFTER INSERT ON futures_klines_1m
+BEGIN
+ UPDATE collector_state SET ready=0, audit_complete=0, last_error='Cambio de prefijo: auditar'
+ WHERE market=NEW.market AND symbol=NEW.symbol AND NEW.open_time_ms < validated_end_ms;
+END;
 """
 SELECT_CANDLES = """SELECT symbol, open_time_ms, close_time_ms_exclusive,
  open, high, low, close, base_volume, taker_buy_base_volume
@@ -97,6 +132,18 @@ def _decode(row: tuple[object, ...]) -> Candle:
 
 class FuturesSQLite:
     def __init__(self, path: Path, *, read_only: bool = False) -> None:
+        self.path = path.resolve()
+        self._lock = exclusive_database(self.path) if not read_only else None
+        if self._lock is not None:
+            self._lock.__enter__()
+        try:
+            self._connect(path, read_only=read_only)
+        except BaseException:
+            if self._lock is not None:
+                self._lock.__exit__(None, None, None)
+            raise
+
+    def _connect(self, path: Path, *, read_only: bool) -> None:
         if read_only:
             self.connection = sqlite3.connect(
                 path.resolve().as_uri() + "?mode=ro", uri=True, isolation_level=None, timeout=30
@@ -124,7 +171,11 @@ class FuturesSQLite:
         error: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.connection.close()
+        try:
+            self.connection.close()
+        finally:
+            if self._lock is not None:
+                self._lock.__exit__(kind, error, traceback)
 
     def note(
         self,
@@ -296,3 +347,12 @@ class FuturesSQLite:
                 (f"Conflicto {symbol.value}/%",),
             )
         )
+
+    def latest_open(self, symbol: Symbol) -> int | None:
+        """Consulta indexada de una fila; no count/min sobre años en cada actualización."""
+        row = self.connection.execute(
+            "SELECT open_time_ms FROM futures_klines_1m WHERE market=? AND symbol=? "
+            "ORDER BY open_time_ms DESC LIMIT 1",
+            (MARKET, symbol.value),
+        ).fetchone()
+        return None if row is None else int(row[0])

@@ -33,16 +33,27 @@ class AuditReport:
 
 
 def audit(
-    store: FuturesSQLite, symbol: Symbol, start: datetime, end: datetime, *, as_of: datetime
+    store: FuturesSQLite,
+    symbol: Symbol,
+    start: datetime,
+    end: datetime,
+    *,
+    as_of: datetime,
+    check_database: bool = True,
+    require_taker_buy: bool = False,
 ) -> AuditReport:
     start_ms, end_ms = minute_ms(start), minute_ms(end)
     if start_ms >= end_ms or end_ms > reference_ms(as_of):
         raise ValueError("Rango de auditoría inválido o todavía abierto")
     expected, rows = start_ms, 0
     gaps: list[Gap] = []
-    errors = list(store.integrity_errors()) + list(store.conflicts(symbol))
+    errors = (list(store.integrity_errors()) if check_database else []) + list(
+        store.conflicts(symbol)
+    )
     try:
         for candle in store.candles(symbol, start_ms, end_ms):
+            if require_taker_buy and candle.taker_buy_base_volume is None:
+                raise ValueError("Histórico Futures sin taker-buy real")
             opened = to_ms(candle.open_time)
             if opened > expected:
                 gaps.append(Gap(expected, opened))

@@ -1,0 +1,11 @@
+[Unit]
+Description=SHib daily full historical audit schedule
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 UTC
+AccuracySec=1min
+Persistent=true
+Unit=shib-data-audit.service
+
+[Install]
+WantedBy=timers.target

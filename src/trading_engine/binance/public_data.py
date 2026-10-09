@@ -1,7 +1,9 @@
 """HTTPS público oficial con TLS, streaming y reintentos acotados."""
 
 import json
+import math
 import shutil
+import ssl
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -20,6 +22,17 @@ from trading_engine.models.values import Symbol
 ARCHIVE_BASE = "https://data.binance.vision"
 REST_BASE = "https://fapi.binance.com/fapi/v1/klines"
 ALLOWED_HOSTS = {"data.binance.vision", "fapi.binance.com"}
+
+
+def transient_http_error(error: BaseException) -> bool:
+    if isinstance(error, HTTPError):
+        return error.code == 429 or 500 <= error.code < 600
+    if isinstance(error, URLError):
+        if isinstance(error.reason, ssl.SSLCertVerificationError):
+            return False
+        reason = str(error.reason)
+        return not any(f"Tunnel connection failed: {code}" in reason for code in (403, 451))
+    return isinstance(error, (TimeoutError, ConnectionError))
 
 
 class OfficialRedirect(HTTPRedirectHandler):
@@ -62,12 +75,17 @@ class PublicHTTP:
         attempts: int = 3,
         timeout: int = 20,
         sleeper: Callable[[int], None] = time.sleep,
+        request_interval_seconds: int = 0,
     ) -> None:
         if type(attempts) is not int or not 1 <= attempts <= 5:
             raise ValueError("attempts debe estar entre 1 y 5")
         if type(timeout) is not int or not 1 <= timeout <= 60:
             raise ValueError("timeout debe estar entre 1 y 60 segundos")
         self.attempts, self.timeout, self.sleeper = attempts, timeout, sleeper
+        if type(request_interval_seconds) is not int or not 0 <= request_interval_seconds <= 60:
+            raise ValueError("request_interval_seconds debe estar entre 0 y 60")
+        self.request_interval_seconds = request_interval_seconds
+        self._last_request: float | None = None
 
     @contextmanager
     def _open(self, url: str) -> Iterator[BinaryIO]:
@@ -88,14 +106,17 @@ class PublicHTTP:
         ):
             raise ValueError("Solo archivos oficiales USDⓈ-M Futures")
         for attempt in range(self.attempts):
+            if self._last_request is not None:
+                remaining = self.request_interval_seconds - (time.monotonic() - self._last_request)
+                if remaining > 0:
+                    self.sleeper(math.ceil(remaining))
+            self._last_request = time.monotonic()
             try:
                 response = open_official(
                     Request(url, headers={"User-Agent": "SHib-alt-b-data/1"}), timeout=self.timeout
                 )
             except (HTTPError, URLError, TimeoutError) as exc:
-                retryable = (
-                    not isinstance(exc, HTTPError) or exc.code == 429 or 500 <= exc.code < 600
-                )
+                retryable = transient_http_error(exc)
                 if not retryable or attempt + 1 == self.attempts:
                     raise
                 self.sleeper(min(2**attempt, 8))

@@ -1,9 +1,10 @@
 # Fase Datos 1 — histórico público USDⓈ-M Futures
 
-La CLI de datos es manual, finita y separada del bot. No requiere API keys,
+La CLI de datos es finita y separada del bot. No requiere API keys,
 no llama endpoints privados, StrategyEngine ni ejecución. El runtime principal
 continúa en STOPPED y termina; no descarga nada al arrancar. No se implementan
-Fase Datos 2, Fase 3B-2B, Replay, Shadow, Live ni órdenes.
+Fase 3B-2B, Replay, Shadow, Live ni órdenes. Fase Datos 2 añade operación autónoma
+del mismo pipeline y ejemplos systemd sin instalar: [DATA_COLLECTOR.md](DATA_COLLECTOR.md).
 
 ## Mercado, fechas y fuentes
 
@@ -158,7 +159,8 @@ Opciones después del subcomando; todos aceptan `--db-path`, `--symbol`, `--star
 `--end`, `--as-of` y `--dry-run`. Fechas ISO-8601 UTC con Z/+00:00 y límites
 alineados a minuto. `plan` y dry-run no hacen red ni crean una base. `status`/`audit`
 abren una base existente en lectura; no crean ni borran datos. Códigos de salida:
-0 operación íntegra (o status/plan), 2 auditoría incompleta, 1 error de operación.
+0 operación íntegra (o status/plan), 2 auditoría incompleta, 1 error definitivo,
+73 bloqueo de escritura ocupado y 75 fallo transitorio de red tras reintentos.
 
 ```sh
 python -m trading_engine.market_data.cli plan --start 2024-03-28T07:00:00Z --end 2024-03-29T00:00:00Z
@@ -175,8 +177,8 @@ no se ejecuta automáticamente. Backfill/recover exigen inicio y fin explícitos
 sync-once exige inicio y usa fin por defecto en el último minuto cerrado. Antes de
 descargar años, el operador debe elegir y aprobar ese rango. Base predeterminada
 `data/futures.sqlite3`, fuera de archivos versionados. `.gitignore` protege SQLite,
-WAL/SHM, directorios de datos, ZIP/CHECKSUM, caches y temporales. No se añade
-dependencia, API key, secreto, daemon, timer ni systemd.
+WAL/SHM, directorios de datos, ZIP/CHECKSUM, caches y temporales. Los comandos
+manuales no añaden dependencias/API keys ni instalan o activan servicios.
 
 ## Validación y estado operativo
 
@@ -204,7 +206,10 @@ confirmó el primer minuto real. La política de salida actual no incluye
 dominios para repetir la comprobación/importar fuentes oficiales. No se eludió
 el proxy, sustituyeron datos ni inició descarga completa o despliegue en VPS.
 
-Fase Datos 2, pendiente de aprobación separada: actualizador por minuto mediante
-timer/servicio, retraso de publicación, backfill tras desconexión, watchdog, logs
-estructurados, health/status y apagado seguro. Deberá excluir velas abiertas.
-Nada de ese servicio continuo se implementa en esta fase.
+Fase Datos 2 añade bloqueo a todas las conexiones de escritura, progreso
+operativo persistente, checksums obligatorios para history-run, actualización
+acotada, backup consistente y observabilidad. Los comandos anteriores conservan
+su semántica manual; para ejecución periódica usar update-once, que no recorre
+todo el histórico. Consultar [DATA_COLLECTOR.md](DATA_COLLECTOR.md). El runtime
+principal sigue STOPPED; los servicios preparados requieren aprobación e
+instalación explícita en el VPS.

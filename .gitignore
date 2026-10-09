@@ -13,6 +13,7 @@ credentials/
 *.sqlite*
 *.db
 *.db-*
+*.db.lock
 *.zip
 *.CHECKSUM
 *.part

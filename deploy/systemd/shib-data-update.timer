@@ -1,0 +1,12 @@
+[Unit]
+Description=SHib closed Futures minute update schedule
+
+[Timer]
+OnBootSec=30s
+OnCalendar=*-*-* *:*:10
+AccuracySec=1s
+Persistent=true
+Unit=shib-data-update.service
+
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,6 @@
 # SHib-alt-b
 
-Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase Datos 1 — histórico público Futures y SQLite**.
+Base de un motor de trading modular y testeable en Python 3.12. **Estado: Fase Datos 2 — colector público Futures autónomo, pendiente de despliegue**.
 Incluye infraestructura, modelos, contratos por eventos y coordinación determinista
 de acciones programadas separadas de las intenciones ejecutables.
 Incluye una política pura UUIDv5 de identidad de dominio con encoding canónico.
@@ -15,9 +15,12 @@ el historial y el warmup. Sin persistencia del estado de estrategia ni integraci
 La CLI manual de datos permite archivos oficiales mensuales/diarios y REST público
 USDⓈ-M 1m, SQLite exacto, sincronización puntual y auditoría/recuperación de gaps.
 Consulta [pipeline de datos](docs/DATA_PIPELINE.md); no descarga al iniciar el bot.
+La operación autónoma reutiliza ese pipeline con bloqueo, checkpoints, update-once
+acotado, auditoría, backup y ejemplos systemd sin activar; ver
+[colector](docs/DATA_COLLECTOR.md). No depende de Codex ni de SSH conectado.
 **Live NO está implementado**:
 el único modo admitido es `STOPPED`. El bot no conecta con Binance ni requiere secretos;
-solo los comandos manuales de datos pueden consultar fuentes públicas.
+solo los comandos de datos pueden consultar fuentes públicas.
 
 ## Requisitos e instalación
 

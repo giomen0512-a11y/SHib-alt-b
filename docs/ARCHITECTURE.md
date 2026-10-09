@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase Datos 1
+# Arquitectura mínima — Fase Datos 2
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -184,6 +184,16 @@ tras cada invocación; no llama StrategyEngine ni modifica el runtime STOPPED.
 La integración offline valida esas Candle con ingest_closed_1m y el evaluador
 aprobado; AltBMarketState conserva su ventana de 1560 minutos. No se persiste
 estado financiero, rondas, acciones u órdenes. Consulta [DATA_PIPELINE.md](DATA_PIPELINE.md).
+
+Fase Datos 2 orquesta ese mismo pipeline mediante `market_data/collector.py`.
+`collector_state`, `collector_gaps` y `collector_errors` conservan solo progreso
+operativo, gate de histórico validado, gaps y errores por job.
+Todas las conexiones de escritura comparten flock;
+datos y checkpoints usan transacciones. La actualización finita audita un tramo
+acotado desde el primer minuto pendiente; la auditoría completa va separada.
+`data_safety.py` añade reserva de disco y backup SQLite consistente sin reemplazo.
+Los ejemplos systemd permiten operar en VPS tras aprobación; siguen sin instalar.
+No se modifica ni conecta el estado financiero/StrategyEngine. Ver [DATA_COLLECTOR.md](DATA_COLLECTOR.md).
 
 ## Invariantes
 

@@ -5,6 +5,9 @@
 !src/**
 !tests/
 !tests/**
+!deploy/
+!deploy/systemd/
+!deploy/systemd/**
 **/__pycache__/
 **/*.pyc
 **/*.egg-info/
