@@ -98,3 +98,9 @@ ChatGPT ni OpenAI.
 Consulta [REPLAY_SPEC.md](docs/REPLAY_SPEC.md) para el uso offline de biblioteca,
 la secuencia de eventos, ausencia de Quotes y reanudación dentro del proceso.
 El runtime continúa STOPPED. Los resultados financieros no están disponibles.
+
+## Modelo de precios — Fase 4A-2A
+
+[EXECUTION_MODEL_SPEC.md](docs/EXECUTION_MODEL_SPEC.md) describe las Quotes
+MODELED_FROM_1M, parámetros obligatorios y escenarios de sensibilidad reproducibles.
+No se implementan fills históricos ni PnL; el runtime permanece STOPPED.

@@ -12,6 +12,7 @@ from trading_engine.models.signals import Signal
 from trading_engine.orchestration.models import CoordinatorState
 from trading_engine.replay.clock import SimulatedClock
 from trading_engine.replay.encoding import canonical, encoded
+from trading_engine.replay.ports import QuoteEvidence
 from trading_engine.strategy.alt_b.config import AltBConfig
 
 
@@ -86,6 +87,8 @@ class ReplaySnapshot:
     event_count: int = 0
     interruption: str | None = None
     integrity_digest: str = ""
+    execution_identity: str | None = None
+    price_evidence: tuple[QuoteEvidence, ...] = ()
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
@@ -120,6 +123,9 @@ class ReplayReport:
     event_count: int
     warmup_required: int = 1560
     financial_results: str = "FINANCIAL_RESULTS_NOT_AVAILABLE"
+    execution_identity: str | None = None
+    price_evidence: tuple[QuoteEvidence, ...] = ()
+    modeled_intents: int = 0
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)

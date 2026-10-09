@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "scenario": "FAVORABLE",
+      "spread_bps": "2",
+      "slippage_bps": "1",
+      "quote_latency_ms": 0,
+      "freshness_limit_ms": 120000,
+      "limit_eligibility": "TOUCH_IS_CANDIDATE_ONLY",
+      "liquidity": {"max_volume_participation": "0.10", "partial_fills": "ALLOW_PARTIAL_ONLY_WITH_EVIDENCE"},
+      "intraminute": "FAVORABLE_SENSITIVITY_BOUND",
+      "assumptions": "SYNTHETIC_FIXTURE_ONLY: uncalibrated numbers, not observed Binance parameters"
+    },
+    {
+      "scenario": "BASE",
+      "spread_bps": "10",
+      "slippage_bps": "3",
+      "quote_latency_ms": 250,
+      "freshness_limit_ms": 90000,
+      "limit_eligibility": "STRICT_CROSS_IS_CANDIDATE_ONLY",
+      "liquidity": {"max_volume_participation": "0.05", "partial_fills": "ALLOW_PARTIAL_ONLY_WITH_EVIDENCE"},
+      "intraminute": "WITHHOLD_IF_SEQUENCE_UNKNOWN",
+      "assumptions": "SYNTHETIC_FIXTURE_ONLY: BASE is not calibrated market behavior"
+    },
+    {
+      "scenario": "ADVERSO",
+      "spread_bps": "30",
+      "slippage_bps": "8",
+      "quote_latency_ms": 1000,
+      "freshness_limit_ms": 60000,
+      "limit_eligibility": "REQUIRE_ADDITIONAL_EVIDENCE",
+      "liquidity": {"max_volume_participation": "0.01", "partial_fills": "WITHHOLD_IF_PARTIAL_REQUIREMENT_UNKNOWN"},
+      "intraminute": "CONSERVATIVE_SENSITIVITY_BOUND",
+      "assumptions": "SYNTHETIC_FIXTURE_ONLY: adverse sensitivity assumptions, not observed Binance parameters"
+    }
+  ]
+}

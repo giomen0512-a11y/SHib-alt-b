@@ -22,6 +22,7 @@ from trading_engine.replay.models import (
 )
 from trading_engine.replay.ports import (
     EntryControl,
+    ExecutionQuoteSource,
     FactSource,
     FillEvidence,
     FixtureFacts,
@@ -56,6 +57,11 @@ class ReplayRunner:
         self.quotes = quotes
         self.facts = facts
         self.coordinator = StrategyCoordinator(AltBEngine(config))
+        execution_identity = None
+        if isinstance(quotes, ExecutionQuoteSource):
+            if quotes.history_session is not history.session:
+                raise ValueError("Fuente modelada debe usar la misma sesión SQLite del runner")
+            execution_identity = quotes.execution_identity
         start = request.warmup_start(config)
         initial = ReplaySnapshot(
             request,
@@ -65,6 +71,7 @@ class ReplayRunner:
             facts.identity,
             SimulatedClock(start),
             start,
+            execution_identity=execution_identity,
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -74,13 +81,23 @@ class ReplayRunner:
                 snapshot.history_session,
                 snapshot.quote_identity,
                 snapshot.fact_identity,
-            ) != (request, config, history.session, quotes.identity, facts.identity):
+                snapshot.execution_identity,
+            ) != (
+                request,
+                config,
+                history.session,
+                quotes.identity,
+                facts.identity,
+                execution_identity,
+            ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
                 )
             self._validate_snapshot()
         else:
             self._record("session", (request, config))
+            if execution_identity is not None:
+                self._record("execution_model", execution_identity)
             conflicts = history.conflicts(config.symbol)
             if conflicts:
                 self._snapshot = replace(
@@ -279,6 +296,9 @@ class ReplayRunner:
                 )
                 self._emit(ReplayEmission(s.clock.now, "cancelled_action", action))
                 continue
+            self._snapshot = replace(
+                self._snapshot, price_evidence=self._snapshot.price_evidence + (evidence,)
+            )
             self._record("explicit_quote", evidence)
             self._integrate(
                 self.coordinator.on_quote(self._snapshot.coordinator, evidence.quote),
@@ -380,4 +400,9 @@ class ReplayRunner:
             s.interruption,
             s.event_digest,
             s.event_count,
+            execution_identity=s.execution_identity,
+            price_evidence=s.price_evidence,
+            modeled_intents=sum(
+                e.kind == "order_intent" and e.provenance == "MODELED_FROM_1M" for e in s.emissions
+            ),
         )

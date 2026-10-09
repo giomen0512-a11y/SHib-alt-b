@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from trading_engine.models._validation import nonblank, require_type
 from trading_engine.models.market import Quote
@@ -31,6 +31,17 @@ class QuoteSource(Protocol):
     def at(self, symbol: Symbol, at: datetime) -> QuoteEvidence | None:
         """Únicamente evidencia disponible en at; sin construirla de OHLC."""
         ...
+
+
+@runtime_checkable
+class ExecutionQuoteSource(QuoteSource, Protocol):
+    """Extensión opcional para fuentes modeladas vinculadas a una sesión de datos."""
+
+    @property
+    def execution_identity(self) -> str: ...
+
+    @property
+    def history_session(self) -> object: ...
 
 
 @dataclass(frozen=True)

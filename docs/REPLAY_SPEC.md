@@ -1,4 +1,4 @@
-# Replay causal — Fase 4A-1
+# Replay causal — Fases 4A-1 y 4A-2A
 
 Infraestructura offline implementada sobre **el mismo AltBEngine y
 StrategyCoordinator** aprobados. No contiene fórmulas estratégicas, simulador
@@ -86,11 +86,12 @@ no confirma cancelación. Order terminal y Fill siguen siendo hechos distintos.
 `QuoteSource.at(symbol, at)` retorna QuoteEvidence o None. Por defecto `NoQuotes`
 no ofrece ninguna cotización. `FixtureQuotes` exige cotizaciones suministradas,
 sin duplicados por símbolo/instante, y las etiqueta **SYNTHETIC_FIXTURE**.
-Nunca transforma Candle.close/high/low en bid/ask.
+FixtureQuotes nunca transforma Candle.close/high/low en bid/ask. Fase 4A-2A añade
+una fuente estimada separada y explícita: [EXECUTION_MODEL_SPEC.md](EXECUTION_MODEL_SPEC.md).
 
-Esta fase exige **Quote.timestamp == action.not_before == reloj actual**, con
+El runner exige **Quote.timestamp == action.not_before == reloj actual**, con
 el mismo símbolo. Es una política explícita de causalidad de fixtures, sin
-asumir un spread, vigencia máxima o frescura histórica todavía no aprobados.
+asumir por defecto un spread, vigencia máxima o frescura histórica.
 Un Quote anterior, posterior o de otro símbolo no permite Base. No se busca
 silenciosamente el último Quote ni se espera a otro futuro.
 
@@ -127,6 +128,7 @@ P0 efectivo, escalera, reemplazos TP, cancelaciones confirmadas y cierre.
   permiso, PendingEntry, Base, órdenes/fills, gestión de ronda e historial.
 - Contadores, rangos inválidos, motivos de checkpoints y emisiones ya producidas.
 - Huella acumulada, número de eventos y causa de interrupción.
+- execution_identity y price_evidence para identificar políticas y precios utilizados.
 - Checksum integral en memoria que detecta pérdida accidental de campos al restaurar.
 
 Se restaura pasando `snapshot=` a otro ReplayRunner en **la misma sesión abierta
@@ -154,7 +156,8 @@ ReplayReport contiene símbolo, mercado, intervalo y período solicitado;
 processed_until; inicio efectivo evaluado y primer minuto leído;
 minutes_read, warmup_read/warmup_applied y evaluated_read; rangos gap/pre_contract;
 checkpoints del intervalo evaluado y sus bloqueos; señales, acciones programadas/canceladas,
-actions_without_quote, fixture_intents/order_intents y cancel_requests;
+actions_without_quote, fixture_intents/modeled_intents/order_intents y cancel_requests;
+execution_identity y price_evidence con procedencia y metadatos de precios;
 CoordinatorState final, block_reason/interruption y huella SHA-256 de eventos.
 
 La huella encadena el digest anterior y JSON canónico de `(reloj, kind, payload)`;
@@ -204,3 +207,13 @@ Revisar antes de construir el simulador financiero:
 
 No se eligen valores arbitrarios ni se presentan fixtures como datos reales.
 Las fórmulas estratégicas aprobadas permanecen separadas de esas políticas.
+
+## Precios modelados — Fase 4A-2A
+
+ModeledQuotes ofrece cotizaciones MODELED_FROM_1M a partir de cierres causales,
+con parámetros de escenario explícitos y obligatorios. Mantiene la política T+120
+y verifica latencia, vigencia y continuidad sin interpolar gaps. Spread y
+slippage están separados; el segundo queda reservado para futuros fills.
+Los perfiles FAVORABLE/BASE/ADVERSO, contratos de liquidez y ambigüedad son
+supuestos de sensibilidad, sin calibración automática. Véase
+[EXECUTION_MODEL_SPEC.md](EXECUTION_MODEL_SPEC.md). No hay fills históricos ni PnL.

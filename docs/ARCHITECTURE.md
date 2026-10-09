@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 4A-1
+# Arquitectura mínima — Fase 4A-2A
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -266,3 +266,15 @@ El snapshot incluye reloj, cursores, estados de ronda, órdenes/fills, resultado
 y huella incremental. Solo se reanuda en la misma sesión de lectura abierta,
 sin serialización/recovery persistente. El informe marca siempre
 FINANCIAL_RESULTS_NOT_AVAILABLE. Véase [REPLAY_SPEC.md](REPLAY_SPEC.md).
+
+## Modelo de precios — Fase 4A-2A
+
+`replay/execution_model` aporta configuración inmutable de tres escenarios,
+ModeledQuotes sobre SQLiteHistory read-only y contratos analíticos futuros de
+liquidez/ambigüedad. Usa solo cierres disponibles, conserva procedencia estimada
+y no contiene fórmulas Alt B ni generación de Order/Fill. La identidad completa
+de política/dataset y la evidencia de precios se incorporan a snapshot/report;
+reanudar con diferentes parámetros se rechaza. La extensión ExecutionQuoteSource
+es opcional; NoQuotes/FixtureQuotes conservan su comportamiento y huellas.
+No hay transporte, ExecutionAdapter, PnL o activación LIVE. Véase
+[EXECUTION_MODEL_SPEC.md](EXECUTION_MODEL_SPEC.md).
