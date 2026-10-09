@@ -180,3 +180,12 @@ Solicitar cancelar no confirma éxito. Los handlers on_order/on_fill existentes
 reciben terminalidad y evidencia; AltBEngine exige conciliación antes de sustituir
 TP o declarar CLOSED. No se añade un adaptador ni otro motor.
 Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md).
+
+## Llamador Replay — Fase 3C-1
+
+ReplayRunner conserva CoordinatorState íntegro y mantiene las acciones vencidas
+en pending_actions hasta recibir Quote explícito admisible. Solo entonces extrae
+mediante advance_time y entrega on_scheduled_action con ese mismo Quote.
+No reutiliza cotización anterior, ejecuta desde OHLC ni descarta acciones due
+sin evaluación. Prioridades, checkpoints y reanudación están en
+[REPLAY_SPEC.md](REPLAY_SPEC.md); los contratos del coordinador no cambian.

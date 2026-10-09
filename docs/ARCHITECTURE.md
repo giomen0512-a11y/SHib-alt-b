@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 3B-2C-2
+# Arquitectura mínima — Fase 3C-1
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -186,7 +186,9 @@ para Replay, Shadow y Live; no se implementa su enforcement en esta fase.
   esos contratos y no contendrán una estrategia duplicada.
 - `orchestration`: coordinación y scheduling deterministas compartidos; sin
   ejecución, llamadas a riesgo ni efectos externos.
-- `replay`, `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
+- `replay`: runner causal offline sobre el mismo AltBEngine/StrategyCoordinator;
+  SQLite solo lectura y hechos explícitos, sin modelo económico de ejecución.
+- `shadow`, `live`: futura coordinación de cada modo y sus adaptadores.
 - `add_margin`: futura política compartida, pendiente de especificación.
 - `persistence`: histórico SQLite exacto, separado de las reglas de decisión.
 - `binance`: HTTPS público USDⓈ-M Futures y normalización de datos, sin SDK,
@@ -232,12 +234,10 @@ El comando `python -m trading_engine` solo valida configuración y registra un
 evento JSON con timestamp UTC, nivel, evento y modo. No registra el entorno
 ni secretos. Los errores se propagan; no se sustituyen por resultados ficticios.
 
-Tests localizados, cambios pequeños y dependencias justificadas. Los paquetes de
-implementaciones futuras siguen reservados; solo está implementada la matemática
-pura de sizing, DCA, promedio y TP, la evaluación de filtros/vetos de entrada y
-la ingesta incremental con estado de mercado explícito.
-AltBEngine emite señales, acciones +120s e intención Base teórica, sin órdenes DCA/TP, replay funcional, Shadow, Live,
-Add Margin ni Telegram.
+Tests localizados, cambios pequeños y dependencias justificadas. AltBEngine integra
+matemáticas, filtros/vetos, ingesta incremental, señales, acciones +120s, intenciones
+Base/DCA/TP y evidencia de ejecución explícita. Replay causal coordina ese mismo
+motor offline; no hay modelo económico de ejecución, Shadow, Live, Add Margin ni Telegram.
 
 ## Gestión de ronda — Fase 3B-2C-2
 
@@ -249,3 +249,15 @@ ni fingir aceptación. El coordinador expone estas solicitudes y valida su tiemp
 sin llamar riesgo/ejecución. Nuevos TP esperan terminalidad y fills conciliados.
 CLOSED exige neto cero y ausencia de órdenes potencialmente activas; historial
 conserva toda evidencia. Ver [ALT_B_DCA_TP.md](ALT_B_DCA_TP.md). Runtime STOPPED.
+
+## Replay causal — Fase 3C-1
+
+ReplayRunner entrega Candle cerrada, controles, Quote y hechos Order/Fill explícitos
+al coordinador existente, con prioridad y tiempo UTC verificados. ReplayState
+conserva CoordinatorState completo, outputs, cursor y auditoría para reanudación
+por segmentos. Una acción due permanece en la cola hasta Quote admisible; no se
+crean cotizaciones desde OHLC ni ejecuciones. FuturesSQLite.read se utiliza en
+modo solo lectura y streaming; gaps aplican el reset aprobado sin borrar evidencia
+financiera. Estado abierto al fin del rango no equivale a cierre.
+No se modifica StrategyEngine, ejecución ni runtime STOPPED.
+Ver [REPLAY_SPEC.md](REPLAY_SPEC.md) para API, prioridades y límites de 3C-2.
