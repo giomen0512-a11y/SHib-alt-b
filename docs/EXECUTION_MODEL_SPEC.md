@@ -249,3 +249,13 @@ reescribir resultados previos. No calificar BASE como observado por su nombre.
 
 La entrega se detiene para revisión antes de 4A-2B. No se descarga histórico,
 se conecta Binance privado, se despliega VPS, se instalan servicios ni se ejecuta trading.
+
+## Continuación implementada — Fase 4A-2B
+
+Los límites anteriores describen 4A-2A y su módulo de precios, que sigue sin crear
+fills. Un componente separado y opt-in implementa ahora ejecución modelada,
+latencias explícitas, presupuesto compartido y evidencia MODELED_EXECUTION:
+[SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md). El slippage MARKET se
+aplica una vez sobre ask; LIMIT usa un buffer de elegibilidad y precio igual al
+límite, sin cargarlo de nuevo. AltBEngine conserva todas sus fórmulas y conciliación.
+Las reglas no son observaciones calibradas; no se implementa PnL.

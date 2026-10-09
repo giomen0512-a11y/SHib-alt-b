@@ -12,6 +12,7 @@ from trading_engine.orchestration.coordinator import StrategyCoordinator
 from trading_engine.orchestration.models import CoordinationResult
 from trading_engine.replay.clock import SimulatedClock
 from trading_engine.replay.encoding import encoded
+from trading_engine.replay.execution_model.quotes import ModeledQuotes
 from trading_engine.replay.history import SQLiteHistory
 from trading_engine.replay.models import (
     InvalidPeriod,
@@ -31,6 +32,8 @@ from trading_engine.replay.ports import (
     QuoteSource,
     ReplayFact,
 )
+from trading_engine.replay.simulated_execution.core import SimulatedExecution
+from trading_engine.replay.simulated_execution.state import ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
 from trading_engine.strategy.alt_b.events.engine import AltBEngine
 from trading_engine.strategy.alt_b.events.state import AltBStrategyState
@@ -49,6 +52,7 @@ class ReplayRunner:
         quotes: QuoteSource | None = None,
         facts: FactSource | None = None,
         snapshot: ReplaySnapshot | None = None,
+        simulator: SimulatedExecution | None = None,
     ) -> None:
         config = AltBConfig() if config is None else config
         quotes = NoQuotes() if quotes is None else quotes
@@ -56,6 +60,12 @@ class ReplayRunner:
         self.history = history
         self.quotes = quotes
         self.facts = facts
+        self.simulator = simulator
+        if simulator is not None:
+            if simulator.quotes is not quotes:
+                raise ValueError("Simulador y runner requieren la misma fuente QuoteSource")
+            if isinstance(quotes, ModeledQuotes) and quotes.policy != simulator.policy.pricing:
+                raise ValueError("Política de precios del simulador incompatible")
         self.coordinator = StrategyCoordinator(AltBEngine(config))
         execution_identity = None
         if isinstance(quotes, ExecutionQuoteSource):
@@ -72,6 +82,8 @@ class ReplayRunner:
             SimulatedClock(start),
             start,
             execution_identity=execution_identity,
+            simulation_identity=None if simulator is None else simulator.identity,
+            simulation=None if simulator is None else simulator.initial(),
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -82,6 +94,7 @@ class ReplayRunner:
                 snapshot.quote_identity,
                 snapshot.fact_identity,
                 snapshot.execution_identity,
+                snapshot.simulation_identity,
             ) != (
                 request,
                 config,
@@ -89,6 +102,7 @@ class ReplayRunner:
                 quotes.identity,
                 facts.identity,
                 execution_identity,
+                None if simulator is None else simulator.identity,
             ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
@@ -98,6 +112,8 @@ class ReplayRunner:
             self._record("session", (request, config))
             if execution_identity is not None:
                 self._record("execution_model", execution_identity)
+            if simulator is not None:
+                self._record("simulated_execution", simulator.identity)
             conflicts = history.conflicts(config.symbol)
             if conflicts:
                 self._snapshot = replace(
@@ -126,6 +142,12 @@ class ReplayRunner:
         if len(s.event_digest) != 64:
             raise ValueError("Huella inválida")
         bytes.fromhex(s.event_digest)
+        if self.simulator is not None:
+            if s.simulation is None:
+                raise ValueError("Snapshot perdió el estado del simulador")
+            self.simulator.validate(s.simulation, s.clock.now)
+        elif s.simulation is not None:
+            raise ValueError("Snapshot simulado requiere simulador")
         state = s.coordinator.strategy_state
         if state is not None:
             if not isinstance(state, AltBStrategyState):
@@ -171,10 +193,47 @@ class ReplayRunner:
             if intent.created_at > s.clock.now:
                 raise ValueError("El motor emitió una intención futura")
             self._emit(ReplayEmission(s.clock.now, "order_intent", intent, provenance))
+            if self.simulator is not None:
+                assert self._snapshot.simulation is not None
+                self._simulation_update(
+                    self.simulator.receive_intent(self._snapshot.simulation, intent, s.clock.now)
+                )
         for request in result.cancel_requests:
             if request.created_at > s.clock.now:
                 raise ValueError("El motor emitió una cancelación futura")
             self._emit(ReplayEmission(s.clock.now, "cancel_request", request, provenance))
+            if self.simulator is not None:
+                assert self._snapshot.simulation is not None
+                self._simulation_update(
+                    self.simulator.cancel(self._snapshot.simulation, request, s.clock.now)
+                )
+
+    def _simulation_update(self, state: ExecutionState) -> None:
+        before = self._snapshot.simulation
+        assert before is not None
+        if state != before:
+            self._record(
+                "simulation_transition",
+                (
+                    state.audit[len(before.audit) :],
+                    state.facts[len(before.facts) :],
+                    state.sequence,
+                    state.last_minute_at,
+                ),
+            )
+            self._snapshot = replace(self._snapshot, simulation=state)
+
+    def _simulation_due(self) -> None:
+        if self.simulator is None:
+            return
+        assert self._snapshot.simulation is not None
+        while self.simulator.next_at(self._snapshot.simulation) == self._snapshot.clock.now:
+            state, facts = self.simulator.advance(
+                self._snapshot.simulation, self._snapshot.clock.now
+            )
+            self._simulation_update(state)
+            for fact in facts:
+                self._fact(fact, simulated=True)
 
     def _activate(self) -> None:
         s = self._snapshot
@@ -250,13 +309,20 @@ class ReplayRunner:
                     ),
                 )
         self._snapshot = replace(self._snapshot, next_open=opened + MINUTE)
+        if self.simulator is not None and self._snapshot.activated:
+            assert self._snapshot.simulation is not None
+            self._simulation_update(
+                self.simulator.candle(self._snapshot.simulation, candle, s.clock.now)
+            )
 
-    def _fact(self, fact: ReplayFact) -> None:
+    def _fact(self, fact: ReplayFact, *, simulated: bool = False) -> None:
         s = self._snapshot
         if fact.received_at != s.clock.now or fact.received_at < s.request.start:
             raise ValueError("Hecho fuera de su instante causal o del intervalo evaluado")
         self._record("explicit_fact", fact)
         payload = fact.payload
+        if self.simulator is not None and not simulated and not isinstance(payload, EntryControl):
+            raise ValueError("No mezclar hechos externos de ejecución con ejecución modelada")
         if isinstance(payload, EntryControl):
             result = self.coordinator.on_entry_control(
                 s.coordinator, payload.allow_entries, s.clock.now
@@ -267,7 +333,8 @@ class ReplayRunner:
             assert isinstance(payload, FillEvidence)
             result = self.coordinator.on_fill(s.coordinator, payload.fill, payload.order)
         self._integrate(result, provenance=fact.provenance)
-        self._snapshot = replace(self._snapshot, fact_cursor=s.fact_cursor + 1)
+        if not simulated:
+            self._snapshot = replace(self._snapshot, fact_cursor=s.fact_cursor + 1)
 
     def _due(self) -> None:
         s = self._snapshot
@@ -346,6 +413,11 @@ class ReplayRunner:
                         raise ValueError("Fuente de hechos fuera de orden")
                     candidates.append(fact.received_at)
                 candidates.extend(a.not_before for a in s.coordinator.pending_actions)
+                if self.simulator is not None:
+                    assert s.simulation is not None
+                    next_execution = self.simulator.next_at(s.simulation)
+                    if next_execution is not None:
+                        candidates.append(next_execution)
                 at = min(candidates)
                 if at > target:
                     break
@@ -360,12 +432,23 @@ class ReplayRunner:
                     self._fact(fact)
                     last_key = fact.key
                     fact = next(facts, None)
+                self._simulation_due()
                 if self._snapshot.next_open + MINUTE == at:
                     self._read_minute()
+                self._simulation_due()
                 # El cierre/gap y PAUSE del mismo instante preceden a la acción.
                 self._due()
+                self._simulation_due()
             self._snapshot = replace(self._snapshot, clock=self._snapshot.clock.advance(target))
         except (ValueError, TypeError, SQLiteError) as exc:
+            if self.simulator is not None and self._snapshot.simulation is not None:
+                self._simulation_update(
+                    self.simulator.conflict(
+                        self._snapshot.simulation,
+                        self._snapshot.clock.now,
+                        f"{type(exc).__name__}:{exc}",
+                    )
+                )
             self._snapshot = replace(self._snapshot, interruption=f"{type(exc).__name__}:{exc}")
             self._record("interruption", self._snapshot.interruption)
         return self.report()
@@ -405,4 +488,8 @@ class ReplayRunner:
             modeled_intents=sum(
                 e.kind == "order_intent" and e.provenance == "MODELED_FROM_1M" for e in s.emissions
             ),
+            simulation=s.simulation,
+            execution_metrics=None
+            if self.simulator is None or s.simulation is None
+            else self.simulator.metrics(s.simulation),
         )

@@ -1,4 +1,4 @@
-# Arquitectura mínima — Fase 4A-2A
+# Arquitectura mínima — Fase 4A-2B
 
 Un único núcleo de decisión, con dependencias externas detrás de adaptadores:
 
@@ -278,3 +278,13 @@ reanudar con diferentes parámetros se rechaza. La extensión ExecutionQuoteSour
 es opcional; NoQuotes/FixtureQuotes conservan su comportamiento y huellas.
 No hay transporte, ExecutionAdapter, PnL o activación LIVE. Véase
 [EXECUTION_MODEL_SPEC.md](EXECUTION_MODEL_SPEC.md).
+
+## Ejecución simulada — Fase 4A-2B
+
+`replay/simulated_execution` es independiente de estrategia y adaptadores LIVE.
+Recibe intenciones/cancelaciones, conserva estado frozen y entrega hechos de dominio
+MODELED_EXECUTION. ReplayRunner lo activa únicamente con configuración explícita;
+las reglas DCA, VWAP, TP y cierre permanecen en AltBEngine. Snapshot conserva
+colas, evidencias y volumen compartido; report añade solo métricas técnicas.
+NoQuotes/FixtureQuotes sin simulador conservan sus huellas.
+Véase [SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md). Runtime STOPPED.

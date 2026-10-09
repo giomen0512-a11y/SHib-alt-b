@@ -104,3 +104,10 @@ El runtime continúa STOPPED. Los resultados financieros no están disponibles.
 [EXECUTION_MODEL_SPEC.md](docs/EXECUTION_MODEL_SPEC.md) describe las Quotes
 MODELED_FROM_1M, parámetros obligatorios y escenarios de sensibilidad reproducibles.
 No se implementan fills históricos ni PnL; el runtime permanece STOPPED.
+
+## Simulador offline — Fase 4A-2B
+
+[SIMULATED_EXECUTION_SPEC.md](docs/SIMULATED_EXECUTION_SPEC.md) documenta la ejecución
+opt-in de OrderIntent/CancelRequest con hechos MODELED_EXECUTION, latencias y
+volumen compartido. El mismo AltBEngine gestiona DCA/TP y cierre. Runtime STOPPED;
+no hay trading real ni resultados financieros.

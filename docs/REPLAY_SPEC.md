@@ -1,8 +1,8 @@
-# Replay causal — Fases 4A-1 y 4A-2A
+# Replay causal — Fases 4A-1, 4A-2A y 4A-2B
 
 Infraestructura offline implementada sobre **el mismo AltBEngine y
-StrategyCoordinator** aprobados. No contiene fórmulas estratégicas, simulador
-histórico de fills, transporte al exchange ni cálculo de rentabilidad.
+StrategyCoordinator** aprobados. No contiene fórmulas estratégicas, transporte al exchange ni cálculo
+de rentabilidad. Fase 4A-2B añade un simulador de ejecución offline opt-in separado.
 `FINANCIAL_RESULTS_NOT_AVAILABLE` aparece siempre en el informe.
 El runtime principal continúa admitiendo únicamente STOPPED.
 
@@ -113,8 +113,8 @@ se entrega al mismo motor sin retroceder el reloj ni inventar nuevas ocurrencias
 Los retries idénticos son idempotentes en el motor; las entregas explícitas
 repetidas siguen contando como eventos observados en la huella.
 
-No se deduce ningún Fill por Candle.low/high. Si una vela toca DCA y TP, la
-secuencia intraminuto sigue desconocida. Solo hechos inyectados pueden activar
+Sin simulador no se deduce ningún Fill por Candle.low/high. Si una vela toca DCA
+y TP, la secuencia intraminuto sigue desconocida. Solo hechos explícitos pueden activar
 P0 efectivo, escalera, reemplazos TP, cancelaciones confirmadas y cierre.
 
 ## Snapshot y reanudación
@@ -217,3 +217,15 @@ slippage están separados; el segundo queda reservado para futuros fills.
 Los perfiles FAVORABLE/BASE/ADVERSO, contratos de liquidez y ambigüedad son
 supuestos de sensibilidad, sin calibración automática. Véase
 [EXECUTION_MODEL_SPEC.md](EXECUTION_MODEL_SPEC.md). No hay fills históricos ni PnL.
+
+## Simulador opt-in — Fase 4A-2B
+
+`simulator=None` conserva el flujo anterior. SimulatedExecution recibe intenciones
+/cancelaciones y aporta ReplayFact MODELED_EXECUTION al mismo motor, con aceptación,
+cancelación, entrega y ventanas de ejecución explícitas. La cota de volumen se
+comparte, la secuencia BASE ambigua abstiene y no se fabrica trayectoria.
+Snapshot/report añaden estado/identidad del simulador y métricas técnicas.
+El orden anterior se conserva y se añaden puntos de entrega causales antes/después
+del cierre y después de la acción. Véase
+[SIMULATED_EXECUTION_SPEC.md](SIMULATED_EXECUTION_SPEC.md) para secuencia exacta,
+restricciones, supuestos y reanudación. No se calculan resultados financieros.
