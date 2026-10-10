@@ -19,7 +19,6 @@ from trading_engine.replay.financial_ledger.models import LedgerState
 from trading_engine.replay.financial_performance.core import FinancialPerformance
 from trading_engine.replay.financial_performance.evidence import FinancialEvent, MarkEvidence
 from trading_engine.replay.financial_performance.models import FinancialObservation
-from trading_engine.replay.history import SQLiteHistory
 from trading_engine.replay.isolated_margin_risk.core import IsolatedMarginRisk
 from trading_engine.replay.isolated_margin_risk.evidence import ConfirmedMarginSource, RiskEvent
 from trading_engine.replay.isolated_margin_risk.models import RiskObservation
@@ -31,6 +30,7 @@ from trading_engine.replay.models import (
     ReplaySnapshot,
 )
 from trading_engine.replay.ports import (
+    CandleHistory,
     EntryControl,
     ExecutionQuoteSource,
     FactSource,
@@ -55,7 +55,7 @@ MINUTE = timedelta(minutes=1)
 class ReplayRunner:
     def __init__(
         self,
-        history: SQLiteHistory,
+        history: CandleHistory,
         request: ReplayRequest,
         *,
         config: AltBConfig | None = None,

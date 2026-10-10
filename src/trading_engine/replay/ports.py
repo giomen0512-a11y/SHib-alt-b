@@ -1,17 +1,30 @@
 """Puertos offline explícitos. Los fixtures nunca se presentan como Binance real."""
 
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 from typing import Protocol, runtime_checkable
 
 from trading_engine.models._validation import nonblank, require_type
-from trading_engine.models.market import Quote
+from trading_engine.models.market import Candle, Quote
 from trading_engine.models.orders import Fill, Order
 from trading_engine.models.values import Symbol
 from trading_engine.replay.encoding import encoded
 from trading_engine.utils.time import require_utc
+
+
+class CandleHistory(Protocol):
+    """Historia offline: el caller consulta únicamente minutos ya cerrados."""
+
+    @property
+    def session(self) -> object: ...
+
+    def read(
+        self, symbol: Symbol, start: datetime, end: datetime
+    ) -> Generator[Candle, None, None]: ...
+
+    def conflicts(self, symbol: Symbol) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True)
