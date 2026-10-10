@@ -1,7 +1,7 @@
 """Contratos offline con identidad, tiempo económico y disponibilidad independientes."""
 
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal, localcontext
 from hashlib import sha256
@@ -75,6 +75,8 @@ class MarginAdjustmentEvidence:
     amount_usdc: Decimal
     kind: str
     fill_id: FillId | None = None
+    request_id: str | None = field(default=None, metadata={"omit_if_none": True})
+    hold_id: str | None = field(default=None, metadata={"omit_if_none": True})
 
     def __post_init__(self) -> None:
         validate_round(self)
@@ -85,6 +87,14 @@ class MarginAdjustmentEvidence:
             raise ValueError("SELL_RELEASE exige exclusivamente su FillId SELL")
         if self.fill_id is not None:
             require_type(self.fill_id, UUID, "fill_id")
+        if (self.request_id is None) != (self.hold_id is None):
+            raise ValueError("Ajuste vinculado exige request_id y hold_id")
+        if self.request_id is not None:
+            assert self.hold_id is not None
+            nonblank(self.request_id, "request_id")
+            nonblank(self.hold_id, "hold_id")
+            if self.kind != "ADD" or self.stamp.reference.provenance is not Origin.MODELED:
+                raise ValueError("Vínculos de transferencia sólo en ADD modelado")
 
 
 @dataclass(frozen=True)
@@ -213,6 +223,39 @@ class FixtureRiskSource:
         return "fixture-risk-v1:" + sha256(encoded(self.events)).hexdigest()
 
     def read(self, cursor: int, until: datetime) -> Iterator[RiskEvent]:
+        for event in self.events[cursor:]:
+            if event.stamp.received_at > until:
+                break
+            yield event
+
+
+@dataclass(frozen=True)
+class ConfirmedMarginSource:
+    """Extensión opt-in: journal de ADD confirmados por un controller offline."""
+
+    controller_identity: str
+    events: tuple[MarginAdjustmentEvidence, ...]
+
+    def __post_init__(self) -> None:
+        nonblank(self.controller_identity, "controller_identity")
+        require_type(self.events, tuple, "events")
+        for event in self.events:
+            require_type(event, MarginAdjustmentEvidence, "confirmed adjustment")
+            if (
+                event.kind != "ADD"
+                or event.request_id is None
+                or event.hold_id is None
+                or event.stamp.reference.provenance is not Origin.MODELED
+            ):
+                raise ValueError("Fuente generada sólo admite ADD modelados y vinculados")
+        if len({e.stamp.event_id for e in self.events}) != len(self.events):
+            raise ValueError("Confirmaciones generadas duplicadas")
+
+    @property
+    def identity(self) -> str:
+        return "confirmed-margin-v1:" + sha256(encoded(self)).hexdigest()
+
+    def read(self, cursor: int, until: datetime) -> Iterator[MarginAdjustmentEvidence]:
         for event in self.events[cursor:]:
             if event.stamp.received_at > until:
                 break

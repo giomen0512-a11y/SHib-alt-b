@@ -14,6 +14,7 @@ from trading_engine.replay.financial_performance.core import FinancialPerformanc
 from trading_engine.replay.financial_performance.evidence import MarkEvidence
 from trading_engine.replay.financial_performance.models import Metric, PerformanceState
 from trading_engine.replay.isolated_margin_risk.evidence import (
+    ConfirmedMarginSource,
     FixtureRiskSource,
     IsolatedMarginEvidence,
     MaintenanceBracketSchedule,
@@ -286,6 +287,8 @@ class IsolatedMarginRisk:
         at: datetime,
         performance: FinancialPerformance,
         financial: PerformanceState,
+        *,
+        confirmations: ConfirmedMarginSource | None = None,
     ) -> int:
         self._time(state, at)
         rebuilt = self.initial(state.period_start, state.period_end)
@@ -294,9 +297,10 @@ class IsolatedMarginRisk:
             sorted(self.source.read(0, at), key=lambda e: (e.stamp.received_at, e.stamp.sequence))
         )
         processed = 0
+        generated = () if confirmations is None else tuple(confirmations.read(0, at))
 
         def tick(current: RiskState, point: datetime) -> RiskState:
-            nonlocal pending, processed
+            nonlocal pending, processed, generated
             current = self.observe(
                 current, RiskObservation(point, self.context_from(performance, prefix, point))
             )
@@ -304,6 +308,9 @@ class IsolatedMarginRisk:
                 current = self.observe(current, RiskObservation(point, pending[0]))
                 pending = pending[1:]
                 processed += 1
+            while generated and generated[0].stamp.received_at == point and not current.conflicts:
+                current = self.observe(current, RiskObservation(point, generated[0]))
+                generated = generated[1:]
             if not current.conflicts:
                 current = self.observe(current, RiskObservation(point, "VALUE"))
             return current

@@ -18,6 +18,7 @@ from trading_engine.replay.financial_performance.models import PerformanceReport
 from trading_engine.replay.isolated_margin_risk.evidence import RiskEvent
 from trading_engine.replay.isolated_margin_risk.models import RiskReport, RiskState
 from trading_engine.replay.ports import QuoteEvidence
+from trading_engine.replay.reserve_transfer_simulation.models import ReserveReport, ReserveState
 from trading_engine.replay.simulated_execution.state import ExecutionMetrics, ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
 
@@ -111,6 +112,8 @@ class ReplaySnapshot:
     risk_pending: tuple[RiskEvent, ...] | None = field(
         default=None, metadata={"omit_if_none": True}
     )
+    reserve_identity: str | None = field(default=None, metadata={"omit_if_none": True})
+    reserve: ReserveState | None = field(default=None, metadata={"omit_if_none": True})
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
@@ -156,6 +159,9 @@ class ReplayReport:
         default=None, metadata={"omit_if_none": True}
     )
     isolated_margin_risk: RiskReport | None = field(default=None, metadata={"omit_if_none": True})
+    reserve_transfer_simulation: ReserveReport | None = field(
+        default=None, metadata={"omit_if_none": True}
+    )
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)

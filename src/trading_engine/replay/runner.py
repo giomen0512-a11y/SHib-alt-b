@@ -21,7 +21,7 @@ from trading_engine.replay.financial_performance.evidence import FinancialEvent,
 from trading_engine.replay.financial_performance.models import FinancialObservation
 from trading_engine.replay.history import SQLiteHistory
 from trading_engine.replay.isolated_margin_risk.core import IsolatedMarginRisk
-from trading_engine.replay.isolated_margin_risk.evidence import RiskEvent
+from trading_engine.replay.isolated_margin_risk.evidence import ConfirmedMarginSource, RiskEvent
 from trading_engine.replay.isolated_margin_risk.models import RiskObservation
 from trading_engine.replay.models import (
     InvalidPeriod,
@@ -41,6 +41,7 @@ from trading_engine.replay.ports import (
     QuoteSource,
     ReplayFact,
 )
+from trading_engine.replay.reserve_transfer_simulation.core import ReserveTransferSimulation
 from trading_engine.replay.simulated_execution.core import SimulatedExecution
 from trading_engine.replay.simulated_execution.state import ExecutionState
 from trading_engine.strategy.alt_b.config import AltBConfig
@@ -65,6 +66,7 @@ class ReplayRunner:
         ledger: FinancialLedger | None = None,
         performance: FinancialPerformance | None = None,
         risk: IsolatedMarginRisk | None = None,
+        reserve_controller: ReserveTransferSimulation | None = None,
     ) -> None:
         config = AltBConfig() if config is None else config
         quotes = NoQuotes() if quotes is None else quotes
@@ -76,10 +78,26 @@ class ReplayRunner:
         self.ledger = ledger
         self.performance = performance
         self.risk = risk
+        self.reserve_controller = reserve_controller
         if performance is not None and ledger is None:
             raise ValueError("Performance opt-in requiere FinancialLedger explícito")
         if risk is not None and performance is None:
             raise ValueError("Riesgo opt-in requiere FinancialPerformance explícito")
+        if reserve_controller is not None:
+            if risk is None:
+                raise ValueError("Reservas opt-in requieren IsolatedMarginRisk explícito")
+            if (
+                reserve_controller.capital is not None
+                and reserve_controller.capital.stamp.received_at != request.start
+            ):
+                raise ValueError("Partición inicial debe estar disponible exactamente en start")
+            if any(
+                not request.start <= e.stamp.received_at <= request.end
+                for e in reserve_controller.source.events
+            ):
+                raise ValueError("Fuente de reservas fuera de intervalo")
+            if any(o.updated_at > request.start for o in reserve_controller.initial_orders):
+                raise ValueError("Orden inicial futura")
         self._risk_events = (
             ()
             if risk is None
@@ -157,6 +175,8 @@ class ReplayRunner:
             risk=None if risk is None else risk.initial(request.start, request.end),
             risk_cursor=None if risk is None else 0,
             risk_pending=None if risk is None else self._risk_events,
+            reserve_identity=None if reserve_controller is None else reserve_controller.identity,
+            reserve=None if reserve_controller is None else reserve_controller.initial(),
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -171,6 +191,7 @@ class ReplayRunner:
                 snapshot.ledger_identity,
                 snapshot.performance_identity,
                 snapshot.risk_identity,
+                snapshot.reserve_identity,
             ) != (
                 request,
                 config,
@@ -182,6 +203,7 @@ class ReplayRunner:
                 None if ledger is None else ledger.identity,
                 None if performance is None else performance.identity,
                 None if risk is None else risk.identity,
+                None if reserve_controller is None else reserve_controller.identity,
             ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
@@ -199,6 +221,8 @@ class ReplayRunner:
                 self._record("financial_performance", performance.identity)
             if risk is not None:
                 self._record("isolated_margin_risk", risk.identity)
+            if reserve_controller is not None:
+                self._record("reserve_transfer_simulation", reserve_controller.identity)
             conflicts = history.conflicts(config.symbol)
             if conflicts:
                 self._snapshot = replace(
@@ -227,6 +251,32 @@ class ReplayRunner:
         if len(s.event_digest) != 64:
             raise ValueError("Huella inválida")
         bytes.fromhex(s.event_digest)
+        confirmations = None
+        if self.reserve_controller is not None:
+            if s.reserve is None:
+                raise ValueError("Snapshot perdió controller de reservas")
+            # Autoridad: fuentes originales y reproducción causal, no un journal
+            # auto-consistente adulterado junto con su checksum.
+            replayed = ReplayRunner(
+                self.history,
+                s.request,
+                config=s.config,
+                quotes=self.quotes,
+                facts=self.facts,
+                simulator=self.simulator,
+                ledger=self.ledger,
+                performance=self.performance,
+                risk=self.risk,
+                reserve_controller=self.reserve_controller,
+            )
+            replayed.run(s.clock.now)
+            if replayed.snapshot != s:
+                raise ValueError("Snapshot de reservas adulterado; reconstrucción distinta")
+            confirmations = ConfirmedMarginSource(
+                self.reserve_controller.identity, s.reserve.adjustments
+            )
+        elif s.reserve is not None:
+            raise ValueError("Snapshot de reservas requiere controller explícito")
         if self.simulator is not None:
             if s.simulation is None:
                 raise ValueError("Snapshot perdió el estado del simulador")
@@ -291,12 +341,28 @@ class ReplayRunner:
             for event_risk in delivered_risk:
                 if not any(e.stamp.event_id == event_risk.stamp.event_id for e in accepted_risk):
                     accepted_risk.append(event_risk)
-            if not s.risk.conflicts and tuple(accepted_risk) != s.risk.events:
+            accepted_all = tuple(accepted_risk)
+            if confirmations is not None:
+                accepted_all = tuple(
+                    sorted(
+                        accepted_all + confirmations.events,
+                        key=lambda e: (
+                            e.stamp.received_at,
+                            e.request_id is not None if hasattr(e, "request_id") else False,
+                            e.stamp.sequence,
+                        ),
+                    )
+                )
+            if not s.risk.conflicts and accepted_all != s.risk.events:
                 raise ValueError("Cursor de riesgo no coincide con eventos reconocidos")
             assert self.performance is not None
             if s.activated:
                 processed_risk = self.risk.validate(
-                    s.risk, s.clock.now, self.performance, s.performance
+                    s.risk,
+                    s.clock.now,
+                    self.performance,
+                    s.performance,
+                    confirmations=confirmations,
                 )
                 if processed_risk != s.risk_cursor:
                     raise ValueError("Cursor de riesgo adulterado; reconstrucción distinta")
@@ -336,6 +402,18 @@ class ReplayRunner:
     def _emit(self, emission: ReplayEmission) -> None:
         self._record("emission", emission)
         self._snapshot = replace(self._snapshot, emissions=self._snapshot.emissions + (emission,))
+        if self.reserve_controller is not None and self._snapshot.activated:
+            reserve = self._snapshot.reserve
+            assert reserve is not None
+            from trading_engine.models.orders import OrderCancelRequest
+
+            if isinstance(emission.payload, OrderCancelRequest):
+                reserve = self.reserve_controller.cancel(reserve, emission.payload, emission.at)
+            elif emission.kind == "order_intent":
+                reserve = self.reserve_controller.audit(
+                    reserve, emission.at, "INTENT_WITHOUT_ALLOCATION", emission.payload
+                )
+            self._snapshot = replace(self._snapshot, reserve=reserve)
 
     def _integrate(self, result: CoordinationResult, *, provenance: str | None = None) -> None:
         s = self._snapshot
@@ -476,8 +554,34 @@ class ReplayRunner:
             state = self.risk.observe(state, RiskObservation(s.clock.now, pending[0]))
             cursor += 1
             pending = pending[1:]
+        controller_error = None
         if not state.conflicts:
-            state = self.risk.observe(state, RiskObservation(s.clock.now, "VALUE"))
+            if self.reserve_controller is None:
+                state = self.risk.observe(state, RiskObservation(s.clock.now, "VALUE"))
+            else:
+                assert s.reserve is not None
+                if s.reserve.conflicts:
+                    return
+                try:
+                    reserve, state = self.reserve_controller.tick(
+                        s.reserve, self.risk, state, s.clock.now
+                    )
+                except (ValueError, TypeError) as exc:
+                    controller_error = str(exc)
+                    reserve = replace(s.reserve, conflicts=(controller_error,))
+                    reserve = self.reserve_controller.audit(
+                        reserve, s.clock.now, "CONFLICT", controller_error
+                    )
+                    state = self.risk.observe(state, RiskObservation(s.clock.now, "VALUE"))
+                self._record(
+                    "reserve_transition",
+                    (
+                        reserve.journal[len(s.reserve.journal) :],
+                        reserve.partition,
+                        reserve.conflicts,
+                    ),
+                )
+                self._snapshot = replace(self._snapshot, reserve=reserve)
         if state != s.risk:
             self._record("risk_transition", (state.journal[len(s.risk.journal) :], state.conflicts))
         self._snapshot = replace(
@@ -485,6 +589,8 @@ class ReplayRunner:
         )
         if state.conflicts:
             raise ValueError("isolated_margin_risk:" + state.conflicts[0].reason)
+        if controller_error is not None:
+            raise ValueError("reserve_transfer_simulation:" + controller_error)
 
     def _activate(self) -> None:
         s = self._snapshot
@@ -572,6 +678,11 @@ class ReplayRunner:
             raise ValueError("Hecho fuera de su instante causal o del intervalo evaluado")
         self._record("explicit_fact", fact)
         payload = fact.payload
+        if self.reserve_controller is not None and not isinstance(payload, EntryControl):
+            assert self._snapshot.reserve is not None
+            order = payload if isinstance(payload, Order) else payload.order
+            reserve = self.reserve_controller.order(self._snapshot.reserve, order, s.clock.now)
+            self._snapshot = replace(self._snapshot, reserve=reserve)
         if self.simulator is not None and not simulated and not isinstance(payload, EntryControl):
             raise ValueError("No mezclar hechos externos de ejecución con ejecución modelada")
         if isinstance(payload, EntryControl):
@@ -678,6 +789,14 @@ class ReplayRunner:
                     candidates.append(s.performance_pending[0][1].received_at)
                 if s.risk_pending:
                     candidates.append(s.risk_pending[0].stamp.received_at)
+                if self.reserve_controller is not None:
+                    assert s.reserve is not None
+                    next_transfer = self.reserve_controller.next_at(s.reserve)
+                    if next_transfer is not None:
+                        candidates.append(next_transfer)
+                    source_events = self.reserve_controller.source.events[s.reserve.source_cursor :]
+                    if source_events:
+                        candidates.append(source_events[0].stamp.received_at)
                 at = min(candidates)
                 if at > target:
                     break
@@ -710,6 +829,7 @@ class ReplayRunner:
                     self._snapshot.performance is not None and self._snapshot.performance.conflicts
                 )
                 and not (self._snapshot.risk is not None and self._snapshot.risk.conflicts)
+                and not (self._snapshot.reserve is not None and self._snapshot.reserve.conflicts)
             ):
                 state = self.ledger.block(
                     self._snapshot.ledger,
@@ -749,6 +869,7 @@ class ReplayRunner:
                     self._snapshot.performance is not None and self._snapshot.performance.conflicts
                 )
                 and not (self._snapshot.risk is not None and self._snapshot.risk.conflicts)
+                and not (self._snapshot.reserve is not None and self._snapshot.reserve.conflicts)
             ):
                 self._simulation_update(
                     self.simulator.conflict(
@@ -816,6 +937,9 @@ class ReplayRunner:
                 if self.performance is None or s.performance is None or s.performance.ledger is None
                 else self.risk.context_from(self.performance, s.performance, s.clock.now),
             ),
+            reserve_transfer_simulation=None
+            if self.reserve_controller is None or s.reserve is None
+            else self.reserve_controller.report(s.reserve),
             execution_identity=s.execution_identity,
             price_evidence=s.price_evidence,
             modeled_intents=sum(
