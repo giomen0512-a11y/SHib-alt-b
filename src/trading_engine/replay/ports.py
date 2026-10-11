@@ -14,6 +14,7 @@ from trading_engine.replay.encoding import encoded
 from trading_engine.utils.time import require_utc
 
 
+@runtime_checkable
 class CandleHistory(Protocol):
     """Historia offline: el caller consulta únicamente minutos ya cerrados."""
 

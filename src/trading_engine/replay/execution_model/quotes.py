@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal, DecimalException, localcontext
 from enum import StrEnum
+from functools import cached_property
 from hashlib import sha256
 from sqlite3 import Error as SQLiteError
+from typing import TYPE_CHECKING
 
 from trading_engine.binance.klines import DEFAULT_SYMBOL, minute_ms
 from trading_engine.models._validation import nonblank, require_type
@@ -14,9 +16,11 @@ from trading_engine.models.values import Price, Symbol
 from trading_engine.replay.encoding import encoded
 from trading_engine.replay.execution_model.contracts import price_context
 from trading_engine.replay.execution_model.policy import ExecutionPolicy, Scenario
-from trading_engine.replay.history import SQLiteHistory
-from trading_engine.replay.ports import QuoteEvidence
+from trading_engine.replay.ports import CandleHistory, QuoteEvidence
 from trading_engine.utils.time import require_utc
+
+if TYPE_CHECKING:
+    from trading_engine.replay.historical_validation.replay_adapter import PreparedTradeHistory
 
 MINUTE = timedelta(minutes=1)
 
@@ -111,23 +115,72 @@ def model_closed_candle(
 
 @dataclass(frozen=True)
 class ModeledQuotes:
-    history: SQLiteHistory
+    history: CandleHistory
     policy: ExecutionPolicy
     dataset_identity: str
 
     def __post_init__(self) -> None:
-        require_type(self.history, SQLiteHistory, "history")
+        if not isinstance(self.history, CandleHistory):
+            raise TypeError("history requiere el puerto CandleHistory")
         require_type(self.policy, ExecutionPolicy, "policy")
         nonblank(self.dataset_identity, "dataset_identity")
+        self._check_prepared()
+
+    @property
+    def _prepared_history(self) -> "PreparedTradeHistory | None":
+        # El adaptador importa ReplayRequest; evitar un ciclo durante la carga de modelos.
+        from trading_engine.replay.historical_validation.replay_adapter import PreparedTradeHistory
+
+        return self.history if isinstance(self.history, PreparedTradeHistory) else None
+
+    def _check_prepared(self, at: datetime | None = None) -> None:
+        history = self._prepared_history
+        if history is not None:
+            # La propiedad verifica cierre, TTL e invalidación de la sesión sellada.
+            _ = history.session
+            if self.dataset_identity != history.evidence.identity:
+                raise ValueError("PREPARED_QUOTE_DATASET_MISMATCH")
+            if at is not None:
+                if at > history.cutoff:
+                    raise ValueError("REPLAY_BEYOND_VERIFIED_CUTOFF")
+                if at > history.request.end:
+                    raise ValueError("REPLAY_OUTSIDE_PREPARED_REQUEST")
+
+    @cached_property
+    def _identity_dataset(self) -> str:
+        dataset = self.dataset_identity
+        history = self._prepared_history
+        if history is not None:
+            # Mismos inputs económicos → mismos UUID de ejecución y orden de suma Decimal.
+            # El alcance STRICT/SEGMENTED sigue vinculado en dataset_identity de cada Quote;
+            # el token de history_session impide heredar confianza entre preparaciones.
+            evidence = history.evidence
+            dataset = (
+                "prepared-trade-inputs-v1:"
+                + sha256(
+                    encoded(
+                        (
+                            evidence.request,
+                            evidence.query_start,
+                            evidence.cutoff,
+                            evidence.bindings,
+                            evidence.query_digest,
+                            evidence.candle_digest,
+                        )
+                    )
+                ).hexdigest()
+            )
+        return dataset
 
     @property
     def identity(self) -> str:
+        self._check_prepared()
         return (
             "modeled-from-1m-v1:"
             + sha256(
                 encoded(
                     (
-                        self.dataset_identity,
+                        self._identity_dataset,
                         DEFAULT_SYMBOL,
                         self.policy.identity,
                         "last_latency_eligible_close_with_continuity",
@@ -142,6 +195,7 @@ class ModeledQuotes:
 
     @property
     def history_session(self) -> object:
+        self._check_prepared()
         return self.history.session
 
     def at(self, symbol: Symbol, at: datetime) -> QuoteEvidence | None:
@@ -150,7 +204,10 @@ class ModeledQuotes:
     def estimate(self, symbol: Symbol, at: datetime) -> QuoteEstimate:
         require_type(symbol, Symbol, "symbol")
         require_utc(at)
+        self._check_prepared(at)
         if symbol != DEFAULT_SYMBOL:
+            if self._prepared_history is not None:
+                raise ValueError("REPLAY_CONTRACT_MISMATCH")
             return QuoteEstimate(None, "unsupported_symbol")
         latest_closed = at.replace(second=0, microsecond=0)
         try:
@@ -168,6 +225,13 @@ class ModeledQuotes:
                     or candle.close_time > at
                     or candle.symbol != symbol
                 ):
+                    if self._prepared_history is not None and (
+                        candle.close_time != candle.open_time + MINUTE
+                        or candle.close_time > at
+                        or candle.symbol != symbol
+                        or candle.open_time < expected
+                    ):
+                        raise ValueError("PREPARED_QUOTE_INVALID_CANDLE")
                     return QuoteEstimate(None, "gap_or_invalid_data")
                 if selected is None:
                     selected = candle
@@ -178,4 +242,7 @@ class ModeledQuotes:
                 selected, self.policy, at=at, dataset_identity=self.dataset_identity
             )
         except (ValueError, TypeError, SQLiteError, DecimalException, OverflowError):
+            # Una historia verificada no puede perder confianza y aparentar falta de liquidez.
+            if self._prepared_history is not None:
+                raise
             return QuoteEstimate(None, "invalid_data_or_timestamp_range")
