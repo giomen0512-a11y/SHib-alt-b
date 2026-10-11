@@ -6,6 +6,11 @@ ni resultados financieros. Runtime STOPPED. Base aprobada:
 
 ## Arquitectura y activación
 
+La [Fase 4A-5D2](HISTORICAL_MODELED_EXECUTION_SPEC.md) permite también
+PreparedTradeHistory → ModeledQuotes mediante CandleHistory. El simulador conserva
+íntegra su implementación, políticas, matching y generación de IDs; runner y Quotes
+deben compartir la misma sesión preparada y la misma instancia QuoteSource.
+
 ```text
 SQLiteHistory read-only → ReplayRunner → ModeledQuotes / ExecutionPolicy
                                   ↓

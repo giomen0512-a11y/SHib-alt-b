@@ -250,6 +250,15 @@ reescribir resultados previos. No calificar BASE como observado por su nombre.
 La entrega se detiene para revisión antes de 4A-2B. No se descarga histórico,
 se conecta Binance privado, se despliega VPS, se instalan servicios ni se ejecuta trading.
 
+## Integración histórica preparada — Fase 4A-5D2
+
+ModeledQuotes acepta ahora el puerto CandleHistory, conservando el algoritmo, fórmula y
+fingerprints de SQLiteHistory. PreparedTradeHistory exige dataset_identity igual a
+history.evidence.identity, misma sesión y propagación de fallos de confianza. La identidad
+económica de los inputs preparados mantiene resultados exactos entre alcances de verificación;
+el alcance permanece distinguible en cada evidencia. Contrato y cutoff:
+[HISTORICAL_MODELED_EXECUTION_SPEC.md](HISTORICAL_MODELED_EXECUTION_SPEC.md).
+
 ## Continuación implementada — Fase 4A-2B
 
 Los límites anteriores describen 4A-2A y su módulo de precios, que sigue sin crear

@@ -1,0 +1,1788 @@
+{
+  "provenance": "SYNTHETIC_FIXTURE",
+  "runtime": "STOPPED",
+  "price_origin": "MODELED_FROM_1M",
+  "execution_provenance": "MODELED_EXECUTION",
+  "financial_results": "FINANCIAL_RESULTS_NOT_AVAILABLE",
+  "history_evidence": {
+    "request": {
+      "start": "2026-01-02T11:45:00+00:00",
+      "end": "2026-01-02T12:23:00+00:00",
+      "allow_entries": true
+    },
+    "query_start": "2026-01-01T09:45:00+00:00",
+    "cutoff": "2026-01-02T12:23:00+00:00",
+    "mode": "STRICT_FULL",
+    "bindings": [
+      {
+        "dataset_id": "0210ea7b3497b0ee69b57247b133292f8da29f31bc9ddaf997e32092589948bb",
+        "audit_id": "6f45f8143aa83b123064367d59b7dda7930ffd195af00e992f5b3e979f394fde",
+        "source_digest": "8ad6ea9fbbcd0567c02816727baf83e18a04fbef4a2a34d83ffc3aea50fec0f5",
+        "registration": {
+          "declaration": {
+            "dataset_id": "synthetic-trade",
+            "dataset_type": "TRADE_KLINES_1M",
+            "contract": {
+              "exchange": "BINANCE",
+              "market": "BINANCE_USDM_FUTURES",
+              "symbol": {
+                "value": "1000SHIBUSDC"
+              },
+              "contract_type": "PERPETUAL",
+              "settlement_asset": "USDC"
+            },
+            "interval": "1m",
+            "period_start": "2026-01-01T09:45:00+00:00",
+            "period_end": "2026-01-02T12:23:00+00:00",
+            "source_url_declared": "local:synthetic-trade",
+            "source_documentation": "SYNTHETIC_FIXTURE_NOT_OFFICIAL",
+            "acquisition_time": "2026-01-03T12:05:00+00:00",
+            "schema_version": "historical-local-v1",
+            "unit_contract": "price=USDC/1000SHIB;volume=1000SHIB;taker_buy=1000SHIB"
+          },
+          "original_file": "/tmp/5d2-trace-historical-modeled-round-ifx8sk0c/synthetic-trade.jsonl",
+          "file_format": "jsonl",
+          "validation_time": "2026-01-04T12:05:00+00:00",
+          "provenance": "SYNTHETIC_FIXTURE",
+          "provenance_evidence": "Synthetic fixture generated locally",
+          "segments": [
+            {
+              "start": "2026-01-01T09:45:00+00:00",
+              "end": "2026-01-02T09:45:00+00:00"
+            },
+            {
+              "start": "2026-01-02T09:45:00+00:00",
+              "end": "2026-01-02T12:23:00+00:00"
+            }
+          ],
+          "member": null,
+          "checksum_file": null,
+          "funding_inventory": null,
+          "limits": {
+            "max_file_bytes": 134217728,
+            "max_uncompressed_bytes": 268435456,
+            "max_compression_ratio": 100,
+            "max_line_bytes": 65536,
+            "max_json_bytes": 1048576,
+            "max_rows": 1000000,
+            "max_findings": 1000,
+            "max_months": 120
+          },
+          "parser_version": "historical-local-v1/4a5b-1",
+          "schema_version": 1
+        }
+      }
+    ],
+    "reconciliation": {
+      "selection_id": "8be1a0fb2dcea5c3f5c6351e9efbbff97620dda3d7adfc31a5bb5a7d43cbd2ff",
+      "kind": "TRADE_KLINES_1M",
+      "start": "2026-01-01T09:45:00+00:00",
+      "end": "2026-01-02T12:23:00+00:00",
+      "cutoff": "2026-01-02T12:23:00+00:00",
+      "requested_end": "2026-01-02T12:23:00+00:00",
+      "recognized": 1598,
+      "duplicates": 0,
+      "conflicts": [],
+      "gaps": [],
+      "coverage_status": "AVAILABLE_FOR_REVIEW",
+      "causal_digest": "c25469927b021abb3961065c22e5a6c9358bf02dd5a8eb31931b98fa19ec4edc",
+      "funding_status": "NOT_APPLICABLE",
+      "funding_inventory": null,
+      "authentication": "NOT_AUTHENTICATED",
+      "economic_authorization": "NOT_AUTHORIZED_FOR_FINANCIAL_ENGINES"
+    },
+    "verification": null,
+    "source_state": "FULL_SOURCE_VERIFIED",
+    "original_state": "FULL_SOURCE_VERIFIED",
+    "query_digest": "c25469927b021abb3961065c22e5a6c9358bf02dd5a8eb31931b98fa19ec4edc",
+    "candle_digest": "1478ebc735439da40c8a046c40baec166f52add1b8e4f21a92b1b1f300956b80",
+    "warmup_read": 1560,
+    "warmup_consecutive": 1560,
+    "warmup_status": "AVAILABLE",
+    "coverage_status": "AVAILABLE",
+    "provenances": [
+      "SYNTHETIC_FIXTURE"
+    ],
+    "identity": "236da22f5ef52838a4ff1d44a3e54e980c82db0cf076c33216438952f72b63f8",
+    "schema_version": 1,
+    "parser_version": "historical-local-v1/4a5b-1",
+    "authentication": "NOT_AUTHENTICATED",
+    "economic_authorization": "NOT_AUTHORIZED_FOR_FINANCIAL_ENGINES",
+    "trade_use": "OFFLINE_REPLAY_CANDIDATE",
+    "historical_financial_adaptation": "NOT_AUTHORIZED",
+    "historical_execution_evidence": "NOT_AVAILABLE",
+    "financial_categories": [
+      "MARK",
+      "FUNDING",
+      "FEES",
+      "BRACKETS",
+      "CAPITAL",
+      "REAL_EXECUTION"
+    ]
+  },
+  "execution_policy": {
+    "pricing": {
+      "scenario": "BASE",
+      "spread_bps": "1E+1",
+      "slippage_bps": "3",
+      "quote_latency_ms": 0,
+      "freshness_limit_ms": 90000,
+      "limit_eligibility": "STRICT_CROSS_IS_CANDIDATE_ONLY",
+      "liquidity": {
+        "max_volume_participation": "0.05",
+        "partial_fills": "ALLOW_PARTIAL_ONLY_WITH_EVIDENCE"
+      },
+      "intraminute": "WITHHOLD_IF_SEQUENCE_UNKNOWN",
+      "assumptions": "SYNTHETIC_FIXTURE_ONLY: BASE is not calibrated market behavior"
+    },
+    "acceptance_latency_ms": 100,
+    "execution_delay_ms": 100,
+    "cancellation_latency_ms": 120000,
+    "delivery_latency_ms": 0,
+    "queue": "ASSUME_SHARED_VOLUME_BUDGET_FIFO",
+    "acceptance": "ACCEPT_SUPPORTED_OFFLINE",
+    "assumptions": "SYNTHETIC_TEST_ONLY: FIFO budget is an assumption, queue/depth unknown",
+    "rules_version": "closed-minute-shared-budget-market-once-v2"
+  },
+  "quote_identity": "modeled-from-1m-v1:b70b39071d8e8e5156a5004bef273557d35cfc59bc809cc3252f7c0cab2afc2e",
+  "simulation_identity": "modeled-execution-v1:4479380bdc6169f40a0b920142d80a3311f4ac5c9fb20c40724ee5b479b673a5",
+  "event_digest": "e61c343d957d857b726d9e275661e83b1ce8d169bc7b0f5c73511667741c4382",
+  "snapshot_integrity": "9f96e41caf08c0f10c5690629a5dac2ce091c37847a23deb362fff1dca04c479",
+  "strategy_emissions": [
+    {
+      "at": "2026-01-02T12:00:00+00:00",
+      "kind": "signal",
+      "payload": {
+        "signal_id": "562f6059-cb33-5ccc-b208-68a643d24e07",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "timestamp": "2026-01-02T12:00:00+00:00",
+        "kind": "ALT_B_LONG_ENTRY"
+      },
+      "provenance": null
+    },
+    {
+      "at": "2026-01-02T12:00:00+00:00",
+      "kind": "scheduled_action",
+      "payload": {
+        "action_id": "ec7ccf71-85e9-5cc3-b976-fa85b7dd9648",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "kind": "ALT_B_BASE_ENTRY",
+        "created_at": "2026-01-02T12:00:00+00:00",
+        "not_before": "2026-01-02T12:02:00+00:00"
+      },
+      "provenance": null
+    },
+    {
+      "at": "2026-01-02T12:02:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "3e8dc55a-bdbd-527b-84df-0b01fdc28862",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "MARKET",
+        "quantity": {
+          "value": "1.6602809697920099032583364773558151768587806112275"
+        },
+        "created_at": "2026-01-02T12:02:00+00:00",
+        "limit_price": null,
+        "reduce_only": false
+      },
+      "provenance": "MODELED_FROM_1M"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "1.9706621252142585448545977708460024532992139211836"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "98.578814775000000000000000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "2.8081044388224877637349422123447557562383012113792"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "96.852434516250000000000000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "4.0136197158900716539725833939264355479429402990647"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "94.867097218687500000000000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "5.7576348687016533389991762116944563613776599457025"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "92.583959326490625000000000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "8.2959556202965420610039636665502142281564225818710"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "89.958350750464218750000000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "12.017712083188936768629208195892264328885628881495"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "86.938900888033851562500000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "17.524740628787231008846643994671586191421172529255"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "83.466533546238929296875000000000000000000000000000"
+        },
+        "reduce_only": false
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:04:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "1.6602809697920099032583364773558151768587806112275"
+        },
+        "created_at": "2026-01-02T12:04:00+00:00",
+        "limit_price": {
+          "value": "100.88065512000000000000000000000000000000000000000"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "kind": "cancel_request",
+      "payload": {
+        "intent": {
+          "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+          "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+          "symbol": {
+            "value": "1000SHIBUSDC"
+          },
+          "side": "SELL",
+          "order_type": "LIMIT",
+          "quantity": {
+            "value": "1.6602809697920099032583364773558151768587806112275"
+          },
+          "created_at": "2026-01-02T12:04:00+00:00",
+          "limit_price": {
+            "value": "100.88065512000000000000000000000000000000000000000"
+          },
+          "reduce_only": true
+        },
+        "created_at": "2026-01-02T12:06:00+00:00"
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "2.6602809697920099032583364773558151768587806112275"
+        },
+        "created_at": "2026-01-02T12:08:00+00:00",
+        "limit_price": {
+          "value": "100.31183932799051611018055791633490692483160825198"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "kind": "cancel_request",
+      "payload": {
+        "intent": {
+          "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+          "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+          "symbol": {
+            "value": "1000SHIBUSDC"
+          },
+          "side": "SELL",
+          "order_type": "LIMIT",
+          "quantity": {
+            "value": "2.6602809697920099032583364773558151768587806112275"
+          },
+          "created_at": "2026-01-02T12:08:00+00:00",
+          "limit_price": {
+            "value": "100.31183932799051611018055791633490692483160825198"
+          },
+          "reduce_only": true
+        },
+        "created_at": "2026-01-02T12:08:00+00:00"
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "3.6309430950062684481129342482018176301579945324111"
+        },
+        "created_at": "2026-01-02T12:10:00+00:00",
+        "limit_price": {
+          "value": "100.05937392248466413187423072591282754048102492681"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "kind": "cancel_request",
+      "payload": {
+        "intent": {
+          "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+          "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+          "symbol": {
+            "value": "1000SHIBUSDC"
+          },
+          "side": "SELL",
+          "order_type": "LIMIT",
+          "quantity": {
+            "value": "3.6309430950062684481129342482018176301579945324111"
+          },
+          "created_at": "2026-01-02T12:10:00+00:00",
+          "limit_price": {
+            "value": "100.05937392248466413187423072591282754048102492681"
+          },
+          "reduce_only": true
+        },
+        "created_at": "2026-01-02T12:10:00+00:00"
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "10.452667249718827865820459854473008934339236042855"
+        },
+        "created_at": "2026-01-02T12:12:00+00:00",
+        "limit_price": {
+          "value": "97.703670185090226241106299304703203267553816107844"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "kind": "cancel_request",
+      "payload": {
+        "intent": {
+          "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+          "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+          "symbol": {
+            "value": "1000SHIBUSDC"
+          },
+          "side": "SELL",
+          "order_type": "LIMIT",
+          "quantity": {
+            "value": "10.452667249718827865820459854473008934339236042855"
+          },
+          "created_at": "2026-01-02T12:12:00+00:00",
+          "limit_price": {
+            "value": "97.703670185090226241106299304703203267553816107844"
+          },
+          "reduce_only": true
+        },
+        "created_at": "2026-01-02T12:12:00+00:00"
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:14:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "24.506257738717023265823599732717679523873318570430"
+        },
+        "created_at": "2026-01-02T12:14:00+00:00",
+        "limit_price": {
+          "value": "94.296482845511551194982630746626163869270578841146"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:14:00+00:00",
+      "kind": "cancel_request",
+      "payload": {
+        "intent": {
+          "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+          "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+          "symbol": {
+            "value": "1000SHIBUSDC"
+          },
+          "side": "SELL",
+          "order_type": "LIMIT",
+          "quantity": {
+            "value": "24.506257738717023265823599732717679523873318570430"
+          },
+          "created_at": "2026-01-02T12:14:00+00:00",
+          "limit_price": {
+            "value": "94.296482845511551194982630746626163869270578841146"
+          },
+          "reduce_only": true
+        },
+        "created_at": "2026-01-02T12:14:00+00:00"
+      },
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:16:00+00:00",
+      "kind": "order_intent",
+      "payload": {
+        "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+        "round_id": "ebd0da91-6e93-58c4-91ca-805a6568b56e",
+        "symbol": {
+          "value": "1000SHIBUSDC"
+        },
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": {
+          "value": "54.048710450693191043299451923281530044180119981179"
+        },
+        "created_at": "2026-01-02T12:16:00+00:00",
+        "limit_price": {
+          "value": "89.520178958088725082364164027399696760670488098084"
+        },
+        "reduce_only": true
+      },
+      "provenance": "MODELED_EXECUTION"
+    }
+  ],
+  "events": [
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:02:00+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "limit_price": null,
+      "filled_quantity": "0",
+      "order_id": "dc0cf1de-715e-56cf-9828-4c02def9d721",
+      "intent_id": "3e8dc55a-bdbd-527b-84df-0b01fdc28862",
+      "side": "BUY",
+      "type": "MARKET",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:02:00+00:00",
+      "sequence": 1,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:02:00.100000+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "limit_price": null,
+      "filled_quantity": "0",
+      "order_id": "dc0cf1de-715e-56cf-9828-4c02def9d721",
+      "intent_id": "3e8dc55a-bdbd-527b-84df-0b01fdc28862",
+      "side": "BUY",
+      "type": "MARKET",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:02:00.100000+00:00",
+      "sequence": 2,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "price": "100.08001500",
+      "order_id": "dc0cf1de-715e-56cf-9828-4c02def9d721",
+      "fill_id": "86f465b0-dd19-595c-9b52-74624029df4f",
+      "intent_id": "3e8dc55a-bdbd-527b-84df-0b01fdc28862",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 3,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "1.9706621252142585448545977708460024532992139211836",
+      "limit_price": "98.578814775000000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 5,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "2.8081044388224877637349422123447557562383012113792",
+      "limit_price": "96.852434516250000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "1d3c028e-9687-5690-82b2-ae938ca9ec01",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 7,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "4.0136197158900716539725833939264355479429402990647",
+      "limit_price": "94.867097218687500000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "aa83ec41-da67-5e0c-8f53-c5fda676f4aa",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 9,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "5.7576348687016533389991762116944563613776599457025",
+      "limit_price": "92.583959326490625000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "ae608bda-55e7-50b8-bd7e-d01ff8f1e7b0",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 11,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "8.2959556202965420610039636665502142281564225818710",
+      "limit_price": "89.958350750464218750000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "9a042966-bc02-5e32-8ad0-8747a2fee2e4",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 13,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "12.017712083188936768629208195892264328885628881495",
+      "limit_price": "86.938900888033851562500000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e7ed7a01-0bc0-5e19-9f56-bf9a6b9d689e",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 15,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "17.524740628787231008846643994671586191421172529255",
+      "limit_price": "83.466533546238929296875000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e1965b41-8498-5e5a-8968-7c584bd88902",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 17,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.88065512000000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e9f584c2-8745-5bda-b926-3b947a478ca4",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:04:00+00:00",
+      "sequence": 19,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "1.9706621252142585448545977708460024532992139211836",
+      "limit_price": "98.578814775000000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 20,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "2.8081044388224877637349422123447557562383012113792",
+      "limit_price": "96.852434516250000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "1d3c028e-9687-5690-82b2-ae938ca9ec01",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 21,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "4.0136197158900716539725833939264355479429402990647",
+      "limit_price": "94.867097218687500000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "aa83ec41-da67-5e0c-8f53-c5fda676f4aa",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 22,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "5.7576348687016533389991762116944563613776599457025",
+      "limit_price": "92.583959326490625000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "ae608bda-55e7-50b8-bd7e-d01ff8f1e7b0",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 23,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "8.2959556202965420610039636665502142281564225818710",
+      "limit_price": "89.958350750464218750000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "9a042966-bc02-5e32-8ad0-8747a2fee2e4",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 24,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "12.017712083188936768629208195892264328885628881495",
+      "limit_price": "86.938900888033851562500000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e7ed7a01-0bc0-5e19-9f56-bf9a6b9d689e",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 25,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "17.524740628787231008846643994671586191421172529255",
+      "limit_price": "83.466533546238929296875000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e1965b41-8498-5e5a-8968-7c584bd88902",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "side": "BUY",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": false,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 26,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:04:00.100000+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.88065512000000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e9f584c2-8745-5bda-b926-3b947a478ca4",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:04:00.100000+00:00",
+      "sequence": 27,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:06:00+00:00",
+      "quantity": "0.50",
+      "price": "98.578814775000000000000000000000000000000000000000",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "fill_id": "ca229e4c-f554-5d2c-bab3-861d46fa93d9",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:06:00+00:00",
+      "sequence": 28,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:07:00+00:00",
+      "quantity": "0.50",
+      "price": "98.578814775000000000000000000000000000000000000000",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "fill_id": "3ca140e5-aec1-54b0-a4a8-bc0a8947959e",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:07:00+00:00",
+      "sequence": 30,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:08:00+00:00",
+      "quantity": "1.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.88065512000000000000000000000000000000000000000",
+      "filled_quantity": "0",
+      "order_id": "e9f584c2-8745-5bda-b926-3b947a478ca4",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "CANCELED",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:08:00+00:00",
+      "sequence": 31,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:08:00+00:00",
+      "quantity": "2.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.31183932799051611018055791633490692483160825198",
+      "filled_quantity": "0",
+      "order_id": "f2e91ef4-67c5-58c3-8024-91218e7188c5",
+      "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:08:00+00:00",
+      "sequence": 33,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:08:00+00:00",
+      "quantity": "0.50",
+      "price": "98.578814775000000000000000000000000000000000000000",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "fill_id": "17c71d3b-ac2e-58c2-8d15-5dc8ce42f80e",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:08:00+00:00",
+      "sequence": 34,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:08:00.100000+00:00",
+      "quantity": "2.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.31183932799051611018055791633490692483160825198",
+      "filled_quantity": "0",
+      "order_id": "f2e91ef4-67c5-58c3-8024-91218e7188c5",
+      "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:08:00.100000+00:00",
+      "sequence": 36,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:09:00+00:00",
+      "quantity": "0.4706621252142585448545977708460024532992139211836",
+      "price": "98.578814775000000000000000000000000000000000000000",
+      "order_id": "0c2cda3a-f437-589b-b746-1d4958d46903",
+      "fill_id": "e85feffa-446c-54ee-8d9a-7e8eff0249b4",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:09:00+00:00",
+      "sequence": 37,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:10:00+00:00",
+      "quantity": "2.6602809697920099032583364773558151768587806112275",
+      "limit_price": "100.31183932799051611018055791633490692483160825198",
+      "filled_quantity": "0",
+      "order_id": "f2e91ef4-67c5-58c3-8024-91218e7188c5",
+      "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "CANCELED",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:10:00+00:00",
+      "sequence": 38,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:10:00+00:00",
+      "quantity": "3.6309430950062684481129342482018176301579945324111",
+      "limit_price": "100.05937392248466413187423072591282754048102492681",
+      "filled_quantity": "0",
+      "order_id": "8e04935e-13b0-5de1-8751-26ddc91d478e",
+      "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:10:00+00:00",
+      "sequence": 40,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:10:00+00:00",
+      "quantity": "2.8081044388224877637349422123447557562383012113792",
+      "price": "96.852434516250000000000000000000000000000000000000",
+      "order_id": "1d3c028e-9687-5690-82b2-ae938ca9ec01",
+      "fill_id": "4bfcf909-dc44-554a-b6a5-db03fc40ad0a",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:10:00+00:00",
+      "sequence": 41,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:10:00.100000+00:00",
+      "quantity": "3.6309430950062684481129342482018176301579945324111",
+      "limit_price": "100.05937392248466413187423072591282754048102492681",
+      "filled_quantity": "0",
+      "order_id": "8e04935e-13b0-5de1-8751-26ddc91d478e",
+      "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:10:00.100000+00:00",
+      "sequence": 43,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:11:00+00:00",
+      "quantity": "4.0136197158900716539725833939264355479429402990647",
+      "price": "94.867097218687500000000000000000000000000000000000",
+      "order_id": "aa83ec41-da67-5e0c-8f53-c5fda676f4aa",
+      "fill_id": "1e20e48c-7b02-5c7c-9533-c71246af33d1",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:11:00+00:00",
+      "sequence": 44,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:12:00+00:00",
+      "quantity": "3.6309430950062684481129342482018176301579945324111",
+      "limit_price": "100.05937392248466413187423072591282754048102492681",
+      "filled_quantity": "0",
+      "order_id": "8e04935e-13b0-5de1-8751-26ddc91d478e",
+      "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "CANCELED",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:12:00+00:00",
+      "sequence": 45,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:12:00+00:00",
+      "quantity": "10.452667249718827865820459854473008934339236042855",
+      "limit_price": "97.703670185090226241106299304703203267553816107844",
+      "filled_quantity": "0",
+      "order_id": "4616fa4e-485d-5fcb-a6da-a9c245c1a266",
+      "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:12:00+00:00",
+      "sequence": 47,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:12:00+00:00",
+      "quantity": "5.7576348687016533389991762116944563613776599457025",
+      "price": "92.583959326490625000000000000000000000000000000000",
+      "order_id": "ae608bda-55e7-50b8-bd7e-d01ff8f1e7b0",
+      "fill_id": "55930214-03b6-5039-8f3a-df7f7d9647bf",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:12:00+00:00",
+      "sequence": 48,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:12:00.100000+00:00",
+      "quantity": "10.452667249718827865820459854473008934339236042855",
+      "limit_price": "97.703670185090226241106299304703203267553816107844",
+      "filled_quantity": "0",
+      "order_id": "4616fa4e-485d-5fcb-a6da-a9c245c1a266",
+      "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:12:00.100000+00:00",
+      "sequence": 50,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:13:00+00:00",
+      "quantity": "8.2959556202965420610039636665502142281564225818710",
+      "price": "89.958350750464218750000000000000000000000000000000",
+      "order_id": "9a042966-bc02-5e32-8ad0-8747a2fee2e4",
+      "fill_id": "46b41313-9a8f-5ca0-9fb6-c1d9aea0497d",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:13:00+00:00",
+      "sequence": 51,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:14:00+00:00",
+      "quantity": "10.452667249718827865820459854473008934339236042855",
+      "limit_price": "97.703670185090226241106299304703203267553816107844",
+      "filled_quantity": "0",
+      "order_id": "4616fa4e-485d-5fcb-a6da-a9c245c1a266",
+      "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "CANCELED",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:14:00+00:00",
+      "sequence": 52,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:14:00+00:00",
+      "quantity": "24.506257738717023265823599732717679523873318570430",
+      "limit_price": "94.296482845511551194982630746626163869270578841146",
+      "filled_quantity": "0",
+      "order_id": "182bef7b-b331-501a-82c2-dbacbe0eb46d",
+      "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:14:00+00:00",
+      "sequence": 54,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:14:00+00:00",
+      "quantity": "12.017712083188936768629208195892264328885628881495",
+      "price": "86.938900888033851562500000000000000000000000000000",
+      "order_id": "e7ed7a01-0bc0-5e19-9f56-bf9a6b9d689e",
+      "fill_id": "183cf344-8496-5555-baa7-e4598ed6760b",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:14:00+00:00",
+      "sequence": 55,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:14:00.100000+00:00",
+      "quantity": "24.506257738717023265823599732717679523873318570430",
+      "limit_price": "94.296482845511551194982630746626163869270578841146",
+      "filled_quantity": "0",
+      "order_id": "182bef7b-b331-501a-82c2-dbacbe0eb46d",
+      "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:14:00.100000+00:00",
+      "sequence": 57,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:15:00+00:00",
+      "quantity": "17.524740628787231008846643994671586191421172529255",
+      "price": "83.466533546238929296875000000000000000000000000000",
+      "order_id": "e1965b41-8498-5e5a-8968-7c584bd88902",
+      "fill_id": "d5db8cf6-522f-505d-b9a6-5f93ae6d71ee",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "side": "BUY",
+      "received_at": "2026-01-02T12:15:00+00:00",
+      "sequence": 58,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:16:00+00:00",
+      "quantity": "24.506257738717023265823599732717679523873318570430",
+      "limit_price": "94.296482845511551194982630746626163869270578841146",
+      "filled_quantity": "0",
+      "order_id": "182bef7b-b331-501a-82c2-dbacbe0eb46d",
+      "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "CANCELED",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:16:00+00:00",
+      "sequence": 59,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:16:00+00:00",
+      "quantity": "54.048710450693191043299451923281530044180119981179",
+      "limit_price": "89.520178958088725082364164027399696760670488098084",
+      "filled_quantity": "0",
+      "order_id": "4500fdeb-bcae-5ead-b9e6-6c5cbd8a0ce0",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "PENDING",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:16:00+00:00",
+      "sequence": 61,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "order",
+      "timestamp": "2026-01-02T12:16:00.100000+00:00",
+      "quantity": "54.048710450693191043299451923281530044180119981179",
+      "limit_price": "89.520178958088725082364164027399696760670488098084",
+      "filled_quantity": "0",
+      "order_id": "4500fdeb-bcae-5ead-b9e6-6c5cbd8a0ce0",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "side": "SELL",
+      "type": "LIMIT",
+      "status": "OPEN",
+      "reduce_only": true,
+      "received_at": "2026-01-02T12:16:00.100000+00:00",
+      "sequence": 62,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:18:00+00:00",
+      "quantity": "0.50",
+      "price": "89.520178958088725082364164027399696760670488098084",
+      "order_id": "4500fdeb-bcae-5ead-b9e6-6c5cbd8a0ce0",
+      "fill_id": "87c801ba-5ff2-54ca-966d-5e0c6e3c66e4",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "side": "SELL",
+      "received_at": "2026-01-02T12:18:00+00:00",
+      "sequence": 63,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:19:00+00:00",
+      "quantity": "50.00",
+      "price": "89.520178958088725082364164027399696760670488098084",
+      "order_id": "4500fdeb-bcae-5ead-b9e6-6c5cbd8a0ce0",
+      "fill_id": "a1ff57eb-d254-514b-a928-252dde3b1319",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "side": "SELL",
+      "received_at": "2026-01-02T12:19:00+00:00",
+      "sequence": 64,
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "kind": "fill",
+      "timestamp": "2026-01-02T12:20:00+00:00",
+      "quantity": "3.548710450693191043299451923281530044180119981179",
+      "price": "89.520178958088725082364164027399696760670488098084",
+      "order_id": "4500fdeb-bcae-5ead-b9e6-6c5cbd8a0ce0",
+      "fill_id": "5fd1c593-68d3-5bda-830e-4c1adbeaec2d",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "side": "SELL",
+      "received_at": "2026-01-02T12:20:00+00:00",
+      "sequence": 65,
+      "provenance": "MODELED_EXECUTION"
+    }
+  ],
+  "non_execution": [
+    {
+      "at": "2026-01-02T12:03:00+00:00",
+      "intent_id": "3e8dc55a-bdbd-527b-84df-0b01fdc28862",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "7e461447-5d34-5684-bc1a-524212a016a1",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:05:00+00:00",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:06:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "a306182e-9310-55d8-9f7e-968e9b4cc99c",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:07:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:08:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "volume_or_reduce_only_capacity_unavailable",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "6d4007fb-bfc1-5765-85c4-5bd70d4e8368",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "782167a3-a36a-580d-86b5-a610aa5d2272",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:09:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "04ab3027-6155-54e8-8bd5-186044e02a8f",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:10:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:11:00+00:00",
+      "intent_id": "bc5e5532-039a-50c2-9bf1-4f945824a650",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:11:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:11:00+00:00",
+      "intent_id": "bcb2c5d6-73fa-5ef9-96ae-99d338a2ae6e",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:11:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:11:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "intent_id": "ca194901-b1fa-5073-a4b0-684b09f11672",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:12:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:13:00+00:00",
+      "intent_id": "2bee9925-089b-536b-b0f7-cd96bdecbfe1",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:13:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:13:00+00:00",
+      "intent_id": "f3a30c0c-1e67-50b6-9341-4fff49f20f62",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:14:00+00:00",
+      "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:14:00+00:00",
+      "intent_id": "55c32104-5061-58a0-8fe9-7ef8ac1c3419",
+      "reason": "limit_price_not_eligible",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:15:00+00:00",
+      "intent_id": "a3b1e685-8b13-595c-a747-82ece69d9b43",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:16:00+00:00",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    },
+    {
+      "at": "2026-01-02T12:17:00+00:00",
+      "intent_id": "d939628f-7c89-5125-973b-929672e66325",
+      "reason": "not_active_for_full_minute",
+      "provenance": "MODELED_EXECUTION"
+    }
+  ],
+  "profiles_with_approved_values": [
+    {
+      "scenario": "FAVORABLE",
+      "spread_bps": "2",
+      "slippage_bps": "1",
+      "quote_latency_ms": 0,
+      "fills": 11,
+      "intents": 13,
+      "orders_accepted": 13,
+      "orders_filled": 9,
+      "orders_partial": 0,
+      "orders_without_execution": 4,
+      "cancellations_confirmed": 4,
+      "quantity_executed": "108.16161720321969966573206890211653739501178621700",
+      "non_execution_reasons": [
+        [
+          "limit_price_not_eligible",
+          39
+        ],
+        [
+          "not_active_for_full_minute",
+          17
+        ],
+        [
+          "volume_or_reduce_only_capacity_unavailable",
+          4
+        ]
+      ],
+      "closed_rounds": 1,
+      "active_round": false,
+      "interruption": null,
+      "financial_results": "FINANCIAL_RESULTS_NOT_AVAILABLE"
+    },
+    {
+      "scenario": "BASE",
+      "spread_bps": "1E+1",
+      "slippage_bps": "3",
+      "quote_latency_ms": 250,
+      "fills": 14,
+      "intents": 14,
+      "orders_accepted": 14,
+      "orders_filled": 9,
+      "orders_partial": 0,
+      "orders_without_execution": 5,
+      "cancellations_confirmed": 5,
+      "quantity_executed": "107.02714940731324959069198400649807929540617818055",
+      "non_execution_reasons": [
+        [
+          "limit_price_not_eligible",
+          30
+        ],
+        [
+          "not_active_for_full_minute",
+          19
+        ],
+        [
+          "volume_or_reduce_only_capacity_unavailable",
+          11
+        ]
+      ],
+      "closed_rounds": 1,
+      "active_round": false,
+      "interruption": null,
+      "financial_results": "FINANCIAL_RESULTS_NOT_AVAILABLE"
+    },
+    {
+      "scenario": "ADVERSO",
+      "spread_bps": "3E+1",
+      "slippage_bps": "8",
+      "quote_latency_ms": 1000,
+      "fills": 6,
+      "intents": 12,
+      "orders_accepted": 12,
+      "orders_filled": 6,
+      "orders_partial": 0,
+      "orders_without_execution": 6,
+      "cancellations_confirmed": 3,
+      "quantity_executed": "24.228104677992030625208293910554626566302623819180",
+      "non_execution_reasons": [
+        [
+          "additional_quote_does_not_support_limit",
+          3
+        ],
+        [
+          "limit_price_not_eligible",
+          5
+        ],
+        [
+          "not_active_for_full_minute",
+          15
+        ],
+        [
+          "partial_execution_withheld",
+          70
+        ]
+      ],
+      "closed_rounds": 0,
+      "active_round": true,
+      "interruption": null,
+      "financial_results": "FINANCIAL_RESULTS_NOT_AVAILABLE"
+    }
+  ]
+}

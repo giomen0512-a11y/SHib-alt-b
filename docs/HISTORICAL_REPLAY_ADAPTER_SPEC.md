@@ -115,9 +115,11 @@ externa explícita. Trade OHLC nunca se convierte en Quote, Fill observado o Mar
 No se infieren bid/ask, spread, slippage, maker/taker, fees, funding, bracket o capital.
 
 Los opt-in aprobados siguen bajo sus propios contratos y etiquetas MODELED/SYNTHETIC_FIXTURE;
-el adaptador no los activa. `ModeledQuotes` actualmente requiere SQLiteHistory concreto: no se
-amplía ese contrato ni se crea una subclase artificial. Vincularlo a esta historia requiere una
-revisión posterior. Las cotizaciones y hechos de fixtures independientes siguen siendo puertos
+el adaptador no los activa. En 5D1, `ModeledQuotes` requería SQLiteHistory concreto. La
+[Fase 4A-5D2](HISTORICAL_MODELED_EXECUTION_SPEC.md) amplía exclusivamente ese consumidor a
+CandleHistory, vinculando evidencia y sesión con fail-closed para historia preparada. El
+adaptador no genera Quotes ni modifica sus autorizaciones financieras. Las cotizaciones y
+hechos de fixtures independientes siguen siendo puertos
 compatibles, como demuestran las pruebas de equivalencia.
 
 Validar Trade no autoriza las categorías Mark, Funding, Fees, Brackets, Capital o ejecución real.
