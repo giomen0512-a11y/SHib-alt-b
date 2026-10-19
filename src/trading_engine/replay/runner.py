@@ -504,9 +504,16 @@ class ReplayRunner:
             )
             self._snapshot = replace(self._snapshot, simulation=state)
 
+    def _check_mark_source(self) -> None:
+        if self.performance is not None and isinstance(
+            self.performance.marks, HistoricalMarkPriceSource
+        ):
+            self.performance.marks.check()
+
     def _financial_tick(self) -> None:
         if self.performance is None or not self._snapshot.activated:
             return
+        self._check_mark_source()
         s = self._snapshot
         assert s.performance is not None and s.ledger is not None
         assert s.performance_cursor is not None and s.performance_pending is not None
@@ -514,12 +521,18 @@ class ReplayRunner:
         cursor = s.performance_cursor
         pending = s.performance_pending
         while pending and pending[0][1].received_at == s.clock.now:
+            if pending[0][0] == "marks":
+                # Los eventos materializados no prolongan la confianza de su fuente.
+                self._check_mark_source()
             state = self.performance.observe(
                 state, FinancialObservation(s.clock.now, pending[0][1])
             )
             cursor += 1
             pending = pending[1:]
+        self._check_mark_source()
         state = self.performance.observe(state, FinancialObservation(s.clock.now, "VALUE"))
+        # Confirmar juntos valoración, journal y cursor solo con la sesión vigente.
+        self._check_mark_source()
         if state != s.performance:
             self._record(
                 "performance_transition",
@@ -767,10 +780,7 @@ class ReplayRunner:
         self._minute(candle)
 
     def run(self, until: datetime | None = None) -> ReplayReport:
-        if self.performance is not None and isinstance(
-            self.performance.marks, HistoricalMarkPriceSource
-        ):
-            self.performance.marks.check()
+        self._check_mark_source()
         s = self._snapshot
         target = s.request.end if until is None else require_utc(until)
         if not s.clock.now <= target <= s.request.end:
@@ -833,8 +843,15 @@ class ReplayRunner:
                 self._simulation_due()
                 self._financial_tick()
                 self._risk_tick()
+            self._check_mark_source()
             self._snapshot = replace(self._snapshot, clock=self._snapshot.clock.advance(target))
         except (ValueError, TypeError, SQLiteError) as exc:
+            try:
+                self._check_mark_source()
+            except ValueError:
+                # No reinterpretar la pérdida de confianza como conflicto del ledger
+                # ni volver a observar con la fuente inválida. Conservar la causa inicial.
+                raise exc from None
             if (
                 self.ledger is not None
                 and self._snapshot.ledger is not None
@@ -896,6 +913,7 @@ class ReplayRunner:
         return self.report()
 
     def report(self) -> ReplayReport:
+        self._check_mark_source()
         s = self._snapshot
 
         def count(kind: str) -> int:

@@ -84,6 +84,17 @@ coincidan y se recalcule el checksum. El runner consulta/checkea la fuente duran
 además de validar al materializar; no hereda confianza de eventos pendientes de un snapshot.
 Los formatos y fingerprints sin esta fuente permanecen idénticos.
 
+AUD-5D3-001 explicita esas comprobaciones en ReplayRunner: entrada del tick financiero,
+antes de cada evento pendiente de clase marks, antes de VALUE y antes de confirmar el
+estado local (journal, serie y cursor), al finalizar run() y al entrar en report(). La
+comprobación de identidad de FinancialPerformance continúa intacta como protección
+adicional. Una pérdida de confianza se propaga sin convertirla en conflicto contable ni
+volver a observar con la fuente inválida; el prefijo financiero confirmado se conserva.
+Son comprobaciones de disponibilidad, TTL y metadatos de archivos en modo segmentado;
+no releen ni recalculan el hash de los datasets por evento. STRICT_FULL conserva su
+contrato de snapshot preparado: no incorpora vigilancia nueva de los originales.
+Secuencia de reproducción y evidencia: AUD_5D3_001_REPORT.md.
+
 ## Memoria y límite de integración
 
 PreparedMarkHistory lee streaming y mantiene un bloque; disco/raíces crecen de forma acotada
