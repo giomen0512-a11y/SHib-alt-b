@@ -114,13 +114,14 @@ class ReplaySnapshot:
     )
     reserve_identity: str | None = field(default=None, metadata={"omit_if_none": True})
     reserve: ReserveState | None = field(default=None, metadata={"omit_if_none": True})
+    mark_history_session: object | None = field(default=None, metadata={"omit_if_none": True})
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
         payload = tuple(
             (field.name, getattr(self, field.name))
             for field in fields(self)
-            if field.name not in {"history_session", "integrity_digest"}
+            if field.name not in {"history_session", "mark_history_session", "integrity_digest"}
             and not (field.metadata.get("omit_if_none") and getattr(self, field.name) is None)
         )
         return sha256(encoded(payload)).hexdigest()

@@ -19,6 +19,7 @@ from trading_engine.replay.financial_ledger.models import LedgerState
 from trading_engine.replay.financial_performance.core import FinancialPerformance
 from trading_engine.replay.financial_performance.evidence import FinancialEvent, MarkEvidence
 from trading_engine.replay.financial_performance.models import FinancialObservation
+from trading_engine.replay.historical_validation.mark_source import HistoricalMarkPriceSource
 from trading_engine.replay.isolated_margin_risk.core import IsolatedMarginRisk
 from trading_engine.replay.isolated_margin_risk.evidence import ConfirmedMarginSource, RiskEvent
 from trading_engine.replay.isolated_margin_risk.models import RiskObservation
@@ -79,6 +80,13 @@ class ReplayRunner:
         self.performance = performance
         self.risk = risk
         self.reserve_controller = reserve_controller
+        mark_session = (
+            performance.marks.history_session
+            if performance is not None and isinstance(performance.marks, HistoricalMarkPriceSource)
+            else None
+        )
+        if snapshot is not None and snapshot.mark_history_session is not mark_session:
+            raise ValueError("Reanudación requiere la misma sesión Mark preparada")
         if performance is not None and ledger is None:
             raise ValueError("Performance opt-in requiere FinancialLedger explícito")
         if risk is not None and performance is None:
@@ -177,6 +185,7 @@ class ReplayRunner:
             risk_pending=None if risk is None else self._risk_events,
             reserve_identity=None if reserve_controller is None else reserve_controller.identity,
             reserve=None if reserve_controller is None else reserve_controller.initial(),
+            mark_history_session=mark_session,
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -758,6 +767,10 @@ class ReplayRunner:
         self._minute(candle)
 
     def run(self, until: datetime | None = None) -> ReplayReport:
+        if self.performance is not None and isinstance(
+            self.performance.marks, HistoricalMarkPriceSource
+        ):
+            self.performance.marks.check()
         s = self._snapshot
         target = s.request.end if until is None else require_utc(until)
         if not s.clock.now <= target <= s.request.end:

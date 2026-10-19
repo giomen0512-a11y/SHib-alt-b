@@ -327,3 +327,11 @@ calendario de funding, evidencia de comisiones/rol maker-taker y conversión aut
 Mark causal validado, fuente de capital/flujos, secuencia cruzada de funding/fills,
 recovery persistente, almacenamiento acotado y calibración fuera de muestra.
 Margen/liquidación requieren contratos verificados y revisión independiente.
+
+## Continuación histórica Mark — Fase 4A-5D3
+
+[HISTORICAL_MARK_PRICE_ADAPTER_SPEC.md](HISTORICAL_MARK_PRICE_ADAPTER_SPEC.md) incorpora
+PreparedMarkHistory y HistoricalMarkPriceSource exclusivamente para muestras de categoría MARK.
+La publicación financiera exige fixtures SYNTHETIC_FIXTURE y política explícita; los datos reales
+sin autorización independiente siguen bloqueados. Reference/OBSERVED, fórmulas y dependencias
+financieras se conservan. Los límites de cierres 1m y de memoria se documentan en esa especificación.

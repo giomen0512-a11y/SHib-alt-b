@@ -83,3 +83,11 @@ Diseñar adaptadores económicos opt-in con revisión de Reference/OBSERVED, sin
 convertir validación de archivos en autorización general. Diseñar escala/segmentación
 y recuperación antes de cargar años en los journals financieros actuales.
 Acceso firmado a datos privados requiere otra revisión; no se solicita ni activa aquí.
+
+## Adaptación Mark opt-in — Fase 4A-5D3
+
+La preparación histórica y la publicación financiera se separan en
+[HISTORICAL_MARK_PRICE_ADAPTER_SPEC.md](HISTORICAL_MARK_PRICE_ADAPTER_SPEC.md).
+Sólo fixtures explícitos de MARK_PRICE_KLINES_1M pueden publicar MarkEvidence bajo
+SYNTHETIC_FIXTURE. Declaración, hashes y verificación local conservan NOT_AUTHENTICATED;
+no se autoriza OBSERVED, datos reales ni liquidación/supervivencia entre muestras.
