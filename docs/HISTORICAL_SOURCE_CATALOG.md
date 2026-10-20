@@ -91,3 +91,13 @@ La preparación histórica y la publicación financiera se separan en
 Sólo fixtures explícitos de MARK_PRICE_KLINES_1M pueden publicar MarkEvidence bajo
 SYNTHETIC_FIXTURE. Declaración, hashes y verificación local conservan NOT_AUTHENTICATED;
 no se autoriza OBSERVED, datos reales ni liquidación/supervivencia entre muestras.
+
+## Preparación Funding opt-in — Fase 4A-5D4
+
+PreparedFundingHistory conserva tasas e inventario explícito con ambos modos de
+verificación. HistoricalFundingSource publica exclusivamente tasas fixture e
+inventario declarado, sin implementar FinancialSource ni producir FundingEvidence
+o CoverageEvidence. La asignación por exposición/ronda y los snapshots económicos
+dinámicos permanecen pendientes de revisión arquitectónica. No se habilita OBSERVED
+ni se autoriza economía de históricos reales. Ver HISTORICAL_FUNDING_ADAPTER_SPEC.md
+y PHASE_4A_5D4_REPORT.md; dictamen de integración BLOCKED_WITH_FINDINGS.
