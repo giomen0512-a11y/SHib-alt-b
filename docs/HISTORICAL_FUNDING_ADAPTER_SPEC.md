@@ -133,6 +133,18 @@ entrar, antes de cada entrega, al finalizar lecturas y antes de devolver inventa
 Cierre, expiración o SOURCE_CHANGED se propagan; el prefijo devuelto no se reescribe.
 Son checks de disponibilidad/TTL/stat, sin rehash completo de originales por evento.
 
+La frontera de entrega exige construir cada HistoricalFundingRateEvent en una
+variable local y volver a comprobar confianza inmediatamente antes de `yield`.
+Una invalidación durante la construcción descarta ese candidato y propaga el error
+original de confianza (incluidos SESSION_EXPIRED y SOURCE_CHANGED); nunca lo entrega
+para fallar en la siguiente iteración. Una excepción del constructor se propaga sin
+sustituirla por un segundo error de validación. El prefijo ya entregado conserva
+contenido, identidades y ordinales; el consumidor solo avanza su cursor por eventos
+efectivamente recibidos. La sesión invalidada no permite reanudar ni saltar filas.
+Esto no añade locking entre hilos ni modifica las garantías STRICT_FULL/SEALED.
+`inventory_at()` conserva su comprobación posterior a construir la publicación y
+sus contratos de disponibilidad, latencia, cutoff e inventario ausente.
+
 ## Bloqueo de integración financiera
 
 ReplayRunner materializa FinancialEvent en su constructor. FundingEvidence ya exige

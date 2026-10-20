@@ -133,7 +133,7 @@ class HistoricalFundingSource:
             event = row.event
             if not isinstance(event.record, FundingRate):
                 raise ValueError("FUNDING_RATE_REQUIRED")
-            yield HistoricalFundingRateEvent(
+            result = HistoricalFundingRateEvent(
                 "historical-funding-rate-v1:" + digest((event.event_id, self.policy)),
                 row.sequence - 1,
                 event.market_available_at + timedelta(milliseconds=self.policy.latency_ms),
@@ -148,6 +148,8 @@ class HistoricalFundingSource:
                     else self.history.evidence.verification.session_identity
                 ),
             )
+            self.check()
+            yield result
         self.check()
 
     def inventory_at(self, until: datetime) -> FundingInventoryPublication | None:
