@@ -175,3 +175,20 @@ class HistoricalFundingSource:
         )
         self.check()
         return result
+
+    def next_received_at(self, cursor: int) -> datetime | None:
+        """Metadato de agenda de la preparación; no publica la tasa futura."""
+        self.check()
+        stream = self.history.read(cursor, self.history.cutoff)
+        try:
+            row = next(stream, None)
+        finally:
+            if hasattr(stream, "close"):
+                stream.close()
+        result = (
+            None
+            if row is None
+            else row.event.market_available_at + timedelta(milliseconds=self.policy.latency_ms)
+        )
+        self.check()
+        return result

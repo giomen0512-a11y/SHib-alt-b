@@ -1,7 +1,8 @@
 # Preparación causal de funding — Fase 4A-5D4
 
 Base exacta: `b483a1c531e16903f98f2bceac13444974b96ca5`.
-Opt-in, offline, runtime STOPPED. **Integración financiera dinámica pendiente**.
+Opt-in, offline, runtime STOPPED. Esta capa continúa publicando tasas, no pagos.
+El consumidor opt-in 4A-5D4B se especifica en [DYNAMIC_FUNDING_REPLAY_SPEC.md](DYNAMIC_FUNDING_REPLAY_SPEC.md).
 Se aplica la alternativa preparatoria autorizada en el apartado 11 del encargo.
 
 ## Arquitectura implementada
@@ -12,8 +13,10 @@ HistoricalFundingSource → HistoricalFundingRateEvent / FundingInventoryPublica
 
 La salida es tasa histórica e inventario declarado, nunca pago, CoverageEvidence,
 FinancialEvent o FundingEvidence. HistoricalFundingSource **no implementa** el puerto
-FinancialSource. No se conecta al ReplayRunner ni se cambia FinancialPerformance.
-No existe asignador productivo por posición/ronda en esta entrega. No se puede
+FinancialSource. El adaptador no modifica FinancialPerformance; la entrega original 4A-5D4 no
+conectaba ReplayRunner. La extensión 4A-5D4B mantiene ese contrato de tasas e
+inventarios y añade un consumidor separado, exclusivamente fixture, sin convertir
+esta fuente en un puerto de pagos. No se puede
 anunciar rentabilidad, funding económico completo o replay multianual con esta capa.
 
 ## Contrato y fuentes
@@ -23,7 +26,7 @@ BINANCE / BINANCE_USDM_FUTURES / 1000SHIBUSDC / PERPETUAL / USDC.
 Se reutilizan Contract, FundingRate, FundingInventory, HistoricalEvent, registro,
 conciliación, parsers, sesiones, límites AdapterLimits y encoding aprobados.
 No se admiten sustituciones Spot, USDT, Trade, Mark, Index o reglas.
-El destino financiero pendiente es LONG, ISOLATED, ONE-WAY; no se modifica el 4x
+El consumidor fixture 4A-5D4B es LONG, ISOLATED, ONE-WAY; no se modifica el 4x
 aprobado ni se introduce una variante 6x. Una tasa no demuestra una posición.
 
 Tasas Decimal exactas expresadas como fracción: 0.0001 = 0.01%. El parser aprobado
@@ -145,7 +148,12 @@ Esto no añade locking entre hilos ni modifica las garantías STRICT_FULL/SEALED
 `inventory_at()` conserva su comprobación posterior a construir la publicación y
 sus contratos de disponibilidad, latencia, cutoff e inventario ausente.
 
-## Bloqueo de integración financiera
+## Bloqueo identificado al cerrar 4A-5D4 (contexto histórico)
+
+La sección siguiente conserva el problema de la base preparatoria. La resolución
+fixture opt-in de agenda, finalización, cobertura y restauración se especifica en
+DYNAMIC_FUNDING_REPLAY_SPEC.md y se valida en PHASE_4A_5D4B_REPORT.md. No describe
+como pendientes los mecanismos ya añadidos por esa extensión.
 
 ReplayRunner materializa FinancialEvent en su constructor. FundingEvidence ya exige
 RoundId y exposición; inventarlos allí usaría fills futuros o cantidades teóricas.
@@ -159,10 +167,11 @@ publicación no anterior al final. Copiar extremos o listas esperadas no demuest
 cobertura del punto end ni inventario de pagos por ronda. No se retimestampa ni
 publica cobertura anticipada para obtener una equity completa artificial.
 
-Son bloqueos de contrato para una extensión conjunta de agenda, asignación y
-restauración. Esta fase no reestructura esos motores. AUD-5D3-001 permanece intacto.
+Eran bloqueos de contrato para una extensión conjunta de agenda, asignación y
+restauración. La entrega preparatoria 4A-5D4 no reestructuró esos motores.
+AUD-5D3-001 permanece intacto.
 
-## Diseño pendiente para revisión
+## Requisitos registrados en 4A-5D4; resolución fixture en 4A-5D4B
 
 1. Aprobar un puerto de tasas/inventario separado de FinancialSource y su agenda
    opt-in por received_at. Conservar el orden de hechos, fills y cierres existente.
@@ -201,20 +210,22 @@ restauración. Esta fase no reestructura esos motores. AUD-5D3-001 permanece int
    dos rondas sucesivas, cero seguido de fill tardío, empates, inventario tardío,
    invalidación después de VALUE y reanudación en ambos lados de cada evento.
 
-Esto requiere revisión adicional; no es un plan autorizado para modificar motores
-en esta entrega ni autorización para 4A-5D5, datos reales, LIVE o despliegues.
+La entrega original registraba estos requisitos para revisión. El encargo posterior
+4A-5D4B autorizó su implementación fixture; no autoriza 4A-5D5, datos reales, LIVE
+o despliegues. La auditoría independiente se realiza sobre la feature final.
 
 ## Memoria, límites y uso
 
 La preparación almacena tasas en disco, raíces O(bloques), cache O(1440 registros).
 FundingInventory ya contiene una tuple O(eventos esperados); no se anuncia memoria
 total constante. El consumidor de tasas puede contar por páginas sin retenerlas.
-El runner y los journals financieros siguen siendo monolíticos y no se han medido
-como consumidores de funding nuevo. Replay 2024–2026 no está certificado.
+El runner y los journals financieros conservan sus límites anteriores. Las medidas
+del nuevo consumidor se separan de las del runner en PHASE_4A_5D4B_REPORT.md.
+Replay 2024–2026 no está certificado.
 
-Para escala multianual faltan agenda por cursor, checkpoints verificables, inventario
-económico autenticado, cierre de exposición, compactación/persistencia y política
-de recovery. Requieren revisión específica. Benchmarks y resultados reales en
+Para escala multianual siguen pendientes una agenda acotada del resto de puertos,
+inventario económico autenticado, compactación/persistencia y recovery portable.
+Requieren revisión específica. Benchmarks y resultados reales en
 PHASE_4A_5D4_REPORT.md; no son una afirmación de rendimiento financiero multianual.
 
 ```python
@@ -231,3 +242,12 @@ with PreparedFundingHistory(path, ids, start, end, cutoff=cutoff, inventory=inve
 
 La muestra no crea capital, pagos, fees, riesgo ni una sesión operativa. En modo
 SEALED se aporta SealedSegmentSession explícita y se conserva abierta durante consumo.
+
+
+## Metadato de agenda añadido por 4A-5D4B
+
+`HistoricalFundingSource.next_received_at(cursor)` consulta únicamente la próxima
+recepción preparada para agendar el consumidor. No entrega HistoricalFundingRateEvent
+ni FundingEvidence, no avanza un cursor externo y cierra el iterador local. Valida
+confianza antes y después de la consulta. `read()` e `inventory_at()` conservan sus
+contratos, identidades, límites y la barrera final de AUD-5D4-001.

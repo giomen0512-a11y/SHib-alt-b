@@ -1,7 +1,8 @@
 # Funding dinámico causal — diseño 4A-5D4B
 
 Base exacta: cb8c13e21a8ac5f396209d6626279d6c1113b9cf.
-Estado inicial: DISEÑO PREVIO A PRODUCCIÓN; implementación y aceptación pendientes.
+Diseño registrado antes de producción en e115710f5660db5ae1baeb1652bb50bb250c02a1.
+Implementación opt-in de esta feature; validación y límites en PHASE_4A_5D4B_REPORT.md.
 Opt-in de biblioteca, fixtures sintéticos, runtime STOPPED. No autoriza datos reales.
 
 ## Decisión de arquitectura
@@ -28,9 +29,9 @@ flowchart TD
   D --> P[FinancialPerformance existente]
   E --> P
   P --> V[VALUE]
-  V --> T[Comprobaciones finales de confianza]
-  T --> S[Confirmación de snapshot y journal]
-  S --> K[Riesgo y reservas existentes]
+  V --> K[Riesgo y reservas sobre estado provisional]
+  K --> T[Comprobaciones finales de confianza]
+  T --> S[Confirmación del tick completo]
 ```
 
 La implementación debe conservar el orden previo de hechos, entregas del simulador,
@@ -186,21 +187,54 @@ crecen en memoria: no se certifica Replay financiero multianual ni 2024–2026.
 Los benchmarks deben separar fuente, agenda, journal y snapshot, y especificar si
 se midió el componente o el runner completo. No se extrapolan unos a otros.
 
-## Compatibilidad y aceptación pendiente
+## Compatibilidad y evidencia
 
 Se congelaron los 208 archivos src/tests de la base antes de editar producción.
 Modificar runner.py y models.py cambia sus hashes legítimamente; la prueba estática
-anterior que exigía inmutabilidad total necesita una migración explícita a hashes
-históricos más equivalencia de comportamiento OFF. No se regenerarán baselines
-financieros para ocultar diferencias ni se afirmará byte-identidad de esos módulos.
+anterior que exigía inmutabilidad total se migra explícitamente: 200 módulos se contrastan contra sus hashes originales,
+y las dos fuentes modificadas conservan sus bytes históricos como fixtures de archivo,
+además de hashes actuales independientes y pruebas OFF. El JSON histórico de 202 hashes
+permanece sin cambios. No se regeneran baselines financieros ni se afirma byte-identidad
+de esos dos módulos.
 
-Antes de declarar READY deben demostrarse A–AE del encargo, con énfasis en fills del
-simulador dentro de run, rondas sucesivas, cierre tardío, NO_EXPOSURE contradictorio,
-end, fuente inválida tras VALUE y restauración adulterada. Deben pasar regresiones
-previas, suites nuevas host/Docker, Ruff, mypy estricto y diff check.
+El informe de fase identifica pruebas A–AE, su nivel (componente o integración),
+resultados reales host/Docker y los límites no medidos. READY_FOR_INDEPENDENT_AUDIT
+no equivale a un PASS de auditoría ni autoriza merge, datos reales o trading.
 
 Diseños rechazados: precalcular pagos antes de fills; elegir ronda activa al recibir;
 asumir prioridad por UUID; finalizar por reloj; convertir inventario semiabierto en
 cobertura inclusiva; pagar cero por ausencia; aceptar checksum como autoridad;
 rehash completo por evento; duplicar fórmula financiera; permitir MODELED sobre
 fuentes reales; desactivar validadores para admitir eventos extra.
+
+
+## Interfaces y fallos observables
+
+Importar DynamicFunding desde `trading_engine.replay.dynamic_funding.core` y las
+políticas/manifiestos desde `trading_engine.replay.dynamic_funding`. El constructor
+de ReplayRunner añade únicamente el keyword opcional `dynamic_funding=None`.
+`initial()` vincula ventana, fuente de hechos, simulador y política del ledger;
+`next_at()` aporta la próxima recepción; `propose()` devuelve un estado frozen y
+los FinancialEvents nuevos; `validate_fact()` protege fronteras finalizadas.
+`report()` no inicia tareas ni publica nada fuera de memoria.
+
+FundingReport.COVERAGE_PUBLISHED indica que se publicó al menos una ventana,
+identificada en `coverage`. No afirma que cubra todo el Replay: FinancialPerformance
+conserva la comprobación completa de sus métricas. BLOCKED indica empate o exposición
+no única; PENDING indica exposición no finalizada o referencia faltante. Sin cobertura
+la métrica financiera no se completa artificialmente.
+
+También se contrastan manifiestos posteriores cuando ya no hay tasas pendientes:
+una frontera nueva no puede omitir fills conocidos ni contradecir manifiestos previos.
+No se elige silenciosamente uno de dos inventarios de ejecución contradictorios.
+Los errores propagan la excepción original de la transición. El caller debe tratar
+run() fallido como una ejecución abortada; report() solo describe el prefijo y su
+reloj real, sin fingir llegada a request.end. Una sesión perdida impide report().
+
+Las cuotas explícitas máximas son 512 tasas, 2048 decisiones, 4096 fills, 512
+manifiestos por puerto y 44640 minutos por ventana. Son cotas de objetos/tiempo,
+no una garantía universal de bytes o latencia. Se conservan los límites del adaptador.
+La recuperación reconstruye desde el warmup y puede ser costosa. Los journals y
+valoraciones legados siguen creciendo: no hay certificación del runner completo a
+30 días ni a 2024–2026. La identidad es estable para los mismos bindings originales;
+no se promete que trasladar un registro a otra ruta produzca la misma procedencia.

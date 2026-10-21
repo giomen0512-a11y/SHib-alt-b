@@ -12,12 +12,18 @@ from trading_engine.models.orders import Order
 from trading_engine.orchestration.coordinator import StrategyCoordinator
 from trading_engine.orchestration.models import CoordinationResult
 from trading_engine.replay.clock import SimulatedClock
+from trading_engine.replay.dynamic_funding.core import DynamicFunding, FundingContext
 from trading_engine.replay.encoding import encoded
 from trading_engine.replay.execution_model.quotes import ModeledQuotes
 from trading_engine.replay.financial_ledger.core import FinancialLedger
 from trading_engine.replay.financial_ledger.models import LedgerState
 from trading_engine.replay.financial_performance.core import FinancialPerformance
-from trading_engine.replay.financial_performance.evidence import FinancialEvent, MarkEvidence
+from trading_engine.replay.financial_performance.evidence import (
+    CoverageEvidence,
+    FinancialEvent,
+    FundingEvidence,
+    MarkEvidence,
+)
 from trading_engine.replay.financial_performance.models import FinancialObservation
 from trading_engine.replay.historical_validation.mark_source import HistoricalMarkPriceSource
 from trading_engine.replay.isolated_margin_risk.core import IsolatedMarginRisk
@@ -68,6 +74,7 @@ class ReplayRunner:
         performance: FinancialPerformance | None = None,
         risk: IsolatedMarginRisk | None = None,
         reserve_controller: ReserveTransferSimulation | None = None,
+        dynamic_funding: DynamicFunding | None = None,
     ) -> None:
         config = AltBConfig() if config is None else config
         quotes = NoQuotes() if quotes is None else quotes
@@ -80,6 +87,25 @@ class ReplayRunner:
         self.performance = performance
         self.risk = risk
         self.reserve_controller = reserve_controller
+        self.dynamic_funding = dynamic_funding
+        if dynamic_funding is not None and (ledger is None or performance is None):
+            raise ValueError("Funding dinámico requiere ledger y performance explícitos")
+        funding_initial = (
+            None
+            if dynamic_funding is None or ledger is None
+            else dynamic_funding.initial(
+                request.start, request.end, facts, simulator, ledger.identity
+            )
+        )
+        funding_session = None if dynamic_funding is None else dynamic_funding.session
+        if snapshot is not None and snapshot.funding_session is not funding_session:
+            raise ValueError("Reanudación requiere la misma sesión de funding dinámico")
+        if (
+            dynamic_funding is None
+            and snapshot is not None
+            and any(value is not None for value in (snapshot.funding, snapshot.funding_identity))
+        ):
+            raise ValueError("Snapshot funding requiere componente dinámico explícito")
         mark_session = (
             performance.marks.history_session
             if performance is not None and isinstance(performance.marks, HistoricalMarkPriceSource)
@@ -142,6 +168,15 @@ class ReplayRunner:
             if len(set(keys)) != len(keys):
                 raise ValueError("Fuente financiera repite secuencia")
             for kind, event in self._financial_events:
+                if dynamic_funding is not None and (
+                    isinstance(event.payload, FundingEvidence)
+                    or (
+                        isinstance(event.payload, CoverageEvidence)
+                        and event.payload.metric == "FUNDING"
+                    )
+                    or event.payload.event_id.startswith("dynamic-funding-")
+                ):
+                    raise ValueError("Funding dinámico no admite una segunda autoridad de pagos")
                 if event.received_at < request.start:
                     raise ValueError("Fuente financiera anterior al intervalo evaluado")
                 if (kind == "marks") != isinstance(event.payload, MarkEvidence):
@@ -186,6 +221,9 @@ class ReplayRunner:
             reserve_identity=None if reserve_controller is None else reserve_controller.identity,
             reserve=None if reserve_controller is None else reserve_controller.initial(),
             mark_history_session=mark_session,
+            funding_identity=None if funding_initial is None else funding_initial.identity,
+            funding_session=funding_session,
+            funding=funding_initial,
         )
         self._snapshot = initial if snapshot is None else snapshot
         if snapshot is not None:
@@ -201,6 +239,7 @@ class ReplayRunner:
                 snapshot.performance_identity,
                 snapshot.risk_identity,
                 snapshot.reserve_identity,
+                snapshot.funding_identity,
             ) != (
                 request,
                 config,
@@ -213,6 +252,7 @@ class ReplayRunner:
                 None if performance is None else performance.identity,
                 None if risk is None else risk.identity,
                 None if reserve_controller is None else reserve_controller.identity,
+                None if funding_initial is None else funding_initial.identity,
             ):
                 raise ValueError(
                     "Reanudación requiere la misma sesión SQLite/configuración/fuentes"
@@ -228,6 +268,8 @@ class ReplayRunner:
                 self._record("financial_ledger", ledger.identity)
             if performance is not None:
                 self._record("financial_performance", performance.identity)
+            if funding_initial is not None:
+                self._record("dynamic_funding", funding_initial.identity)
             if risk is not None:
                 self._record("isolated_margin_risk", risk.identity)
             if reserve_controller is not None:
@@ -238,6 +280,7 @@ class ReplayRunner:
                     self._snapshot, interruption="sqlite_conflicts:" + " | ".join(conflicts)
                 )
                 self._record("interruption", self._snapshot.interruption)
+        self._check_funding_source()
 
     @property
     def snapshot(self) -> ReplaySnapshot:
@@ -261,9 +304,12 @@ class ReplayRunner:
             raise ValueError("Huella inválida")
         bytes.fromhex(s.event_digest)
         confirmations = None
-        if self.reserve_controller is not None:
-            if s.reserve is None:
+        if self.reserve_controller is not None or self.dynamic_funding is not None:
+            self._check_funding_source()
+            if self.reserve_controller is not None and s.reserve is None:
                 raise ValueError("Snapshot perdió controller de reservas")
+            if self.dynamic_funding is not None and s.funding is None:
+                raise ValueError("Snapshot perdió journal funding")
             # Autoridad: fuentes originales y reproducción causal, no un journal
             # auto-consistente adulterado junto con su checksum.
             replayed = ReplayRunner(
@@ -277,13 +323,17 @@ class ReplayRunner:
                 performance=self.performance,
                 risk=self.risk,
                 reserve_controller=self.reserve_controller,
+                dynamic_funding=self.dynamic_funding,
             )
             replayed.run(s.clock.now)
             if replayed.snapshot != s:
-                raise ValueError("Snapshot de reservas adulterado; reconstrucción distinta")
-            confirmations = ConfirmedMarginSource(
-                self.reserve_controller.identity, s.reserve.adjustments
-            )
+                raise ValueError("Snapshot adulterado; reconstrucción causal distinta")
+            self._check_funding_source()
+            if self.reserve_controller is not None:
+                assert s.reserve is not None
+                confirmations = ConfirmedMarginSource(
+                    self.reserve_controller.identity, s.reserve.adjustments
+                )
         elif s.reserve is not None:
             raise ValueError("Snapshot de reservas requiere controller explícito")
         if self.simulator is not None:
@@ -318,6 +368,14 @@ class ReplayRunner:
             ):
                 raise ValueError("Snapshot perdió una entrega financiera vencida")
             expected_events = s.performance.events
+            if s.funding is not None:
+                dynamic_ids = {e.payload.event_id for e in s.funding.events}
+                recognized = tuple(e for e in expected_events if e.payload.event_id in dynamic_ids)
+                if recognized != s.funding.events:
+                    raise ValueError("Journal funding no coincide con performance")
+                expected_events = tuple(
+                    e for e in expected_events if e.payload.event_id not in dynamic_ids
+                )
             accepted: list[FinancialEvent] = []
             for _, event in delivered:
                 if not any(e.payload.event_id == event.payload.event_id for e in accepted):
@@ -510,10 +568,15 @@ class ReplayRunner:
         ):
             self.performance.marks.check()
 
+    def _check_funding_source(self) -> None:
+        if self.dynamic_funding is not None:
+            self.dynamic_funding.check()
+
     def _financial_tick(self) -> None:
         if self.performance is None or not self._snapshot.activated:
             return
         self._check_mark_source()
+        self._check_funding_source()
         s = self._snapshot
         assert s.performance is not None and s.ledger is not None
         assert s.performance_cursor is not None and s.performance_pending is not None
@@ -524,15 +587,39 @@ class ReplayRunner:
             if pending[0][0] == "marks":
                 # Los eventos materializados no prolongan la confianza de su fuente.
                 self._check_mark_source()
+            self._check_funding_source()
             state = self.performance.observe(
                 state, FinancialObservation(s.clock.now, pending[0][1])
             )
             cursor += 1
             pending = pending[1:]
+        funding = s.funding
+        if self.dynamic_funding is not None:
+            assert funding is not None
+            funding, events = self.dynamic_funding.propose(
+                funding,
+                FundingContext(
+                    s.clock.now,
+                    s.request.start,
+                    s.request.end,
+                    s.ledger,
+                    self.facts.identity,
+                    s.next_open + MINUTE,
+                    self.simulator,
+                    s.simulation,
+                ),
+            )
+            for event in events:
+                self._check_funding_source()
+                state = self.performance.observe(state, FinancialObservation(s.clock.now, event))
         self._check_mark_source()
+        self._check_funding_source()
         state = self.performance.observe(state, FinancialObservation(s.clock.now, "VALUE"))
         # Confirmar juntos valoración, journal y cursor solo con la sesión vigente.
         self._check_mark_source()
+        self._check_funding_source()
+        if funding != s.funding:
+            self._record("funding_transition", funding)
         if state != s.performance:
             self._record(
                 "performance_transition",
@@ -543,6 +630,7 @@ class ReplayRunner:
             performance=state,
             performance_cursor=cursor,
             performance_pending=pending,
+            funding=funding,
         )
         if state.conflicts:
             raise ValueError("financial_performance:" + state.conflicts[0].reason)
@@ -696,6 +784,9 @@ class ReplayRunner:
 
     def _fact(self, fact: ReplayFact, *, simulated: bool = False) -> None:
         s = self._snapshot
+        if self.dynamic_funding is not None:
+            assert s.funding is not None and s.ledger is not None
+            self.dynamic_funding.validate_fact(s.funding, fact, s.ledger)
         if fact.received_at != s.clock.now or fact.received_at < s.request.start:
             raise ValueError("Hecho fuera de su instante causal o del intervalo evaluado")
         self._record("explicit_fact", fact)
@@ -781,6 +872,7 @@ class ReplayRunner:
 
     def run(self, until: datetime | None = None) -> ReplayReport:
         self._check_mark_source()
+        self._check_funding_source()
         s = self._snapshot
         target = s.request.end if until is None else require_utc(until)
         if not s.clock.now <= target <= s.request.end:
@@ -810,6 +902,13 @@ class ReplayRunner:
                         candidates.append(next_execution)
                 if s.performance_pending:
                     candidates.append(s.performance_pending[0][1].received_at)
+                if self.dynamic_funding is not None:
+                    assert s.funding is not None
+                    next_funding = self.dynamic_funding.next_at(
+                        s.funding, s.clock.now, self.simulator
+                    )
+                    if next_funding is not None:
+                        candidates.append(next_funding)
                 if s.risk_pending:
                     candidates.append(s.risk_pending[0].stamp.received_at)
                 if self.reserve_controller is not None:
@@ -823,29 +922,39 @@ class ReplayRunner:
                 at = min(candidates)
                 if at > target:
                     break
-                self._snapshot = replace(s, clock=s.clock.advance(at))
-                # En start termina primero el warmup y luego se habilita la evaluación.
-                if at == s.request.start and not s.activated:
-                    if at == s.next_open + MINUTE:
+                try:
+                    self._snapshot = replace(s, clock=s.clock.advance(at))
+                    # En start termina primero el warmup y luego se habilita la evaluación.
+                    if at == s.request.start and not s.activated:
+                        if at == s.next_open + MINUTE:
+                            self._read_minute()
+                        self._activate()
+                    # Control → Order → Fill (sequence explícita en cada clase).
+                    while fact is not None and fact.received_at == at:
+                        self._fact(fact)
+                        last_key = fact.key
+                        fact = next(facts, None)
+                    self._simulation_due()
+                    if self._snapshot.next_open + MINUTE == at:
                         self._read_minute()
-                    self._activate()
-                # Control → Order → Fill (sequence explícita en cada clase).
-                while fact is not None and fact.received_at == at:
-                    self._fact(fact)
-                    last_key = fact.key
-                    fact = next(facts, None)
-                self._simulation_due()
-                if self._snapshot.next_open + MINUTE == at:
-                    self._read_minute()
-                self._simulation_due()
-                # El cierre/gap y PAUSE del mismo instante preceden a la acción.
-                self._due()
-                self._simulation_due()
-                self._financial_tick()
-                self._risk_tick()
+                    self._simulation_due()
+                    # El cierre/gap y PAUSE del mismo instante preceden a la acción.
+                    self._due()
+                    self._simulation_due()
+                    self._financial_tick()
+                    self._risk_tick()
+                    self._check_mark_source()
+                    self._check_funding_source()
+                except BaseException:
+                    if self.dynamic_funding is not None:
+                        self._snapshot = s
+                    raise
             self._check_mark_source()
+            self._check_funding_source()
             self._snapshot = replace(self._snapshot, clock=self._snapshot.clock.advance(target))
         except (ValueError, TypeError, SQLiteError) as exc:
+            if self.dynamic_funding is not None:
+                raise
             try:
                 self._check_mark_source()
             except ValueError:
@@ -914,6 +1023,7 @@ class ReplayRunner:
 
     def report(self) -> ReplayReport:
         self._check_mark_source()
+        self._check_funding_source()
         s = self._snapshot
 
         def count(kind: str) -> int:
@@ -931,7 +1041,7 @@ class ReplayRunner:
                 if s.ledger.conflicts or s.interruption is not None
                 else "PNL_BRUTO_REALIZADO_DISPONIBLE"
             )
-        return ReplayReport(
+        result = ReplayReport(
             MARKET,
             s.config.symbol.value,
             "1m",
@@ -954,6 +1064,9 @@ class ReplayRunner:
             s.interruption,
             s.event_digest,
             s.event_count,
+            dynamic_funding=None
+            if self.dynamic_funding is None or s.funding is None
+            else self.dynamic_funding.report(s.funding),
             financial_results=availability,
             financial_ledger=financial,
             financial_performance=None
@@ -981,3 +1094,5 @@ class ReplayRunner:
             if self.simulator is None or s.simulation is None
             else self.simulator.metrics(s.simulation),
         )
+        self._check_funding_source()
+        return result

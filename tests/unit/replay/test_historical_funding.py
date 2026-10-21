@@ -504,7 +504,21 @@ def test_all_legacy_source_tests_and_fingerprints_remain_frozen() -> None:
     frozen = json.loads(
         (Path(__file__).parent / "fixtures/historical_funding_baselines.json").read_text()
     )
+    fixtures = Path(__file__).parent / "fixtures"
+    migration = json.loads((fixtures / "dynamic_funding_source_changes.json").read_text())
+    changes = migration["approved_source_changes"]
+    assert set(changes) == {
+        "src/trading_engine/replay/runner.py",
+        "src/trading_engine/replay/models.py",
+    }
     for file, expected in frozen["protected_sha256"].items():
+        if file in changes:
+            change = changes[file]
+            assert change["historical_sha256"] == expected
+            assert sha256((fixtures / change["archive"]).read_bytes()).hexdigest() == expected
+            assert change["current_sha256"] != expected
+            assert change["equivalence_tests"]
+            expected = change["current_sha256"]
         assert sha256((root / file).read_bytes()).hexdigest() == expected, file
 
 

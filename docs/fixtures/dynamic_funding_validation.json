@@ -1,0 +1,130 @@
+{
+  "host": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "2807",
+    "time": "1770.021",
+    "timestamp": "2026-10-21T13:56:36.684642+00:00",
+    "hostname": "81bf609b326c"
+  },
+  "host_cases_by_module": {
+    "test_actions": 30,
+    "test_alt_b_base_fills": 57,
+    "test_alt_b_boundaries": 1,
+    "test_alt_b_config": 271,
+    "test_alt_b_engine": 47,
+    "test_alt_b_entry": 160,
+    "test_alt_b_market": 41,
+    "test_alt_b_market_state": 62,
+    "test_alt_b_math": 53,
+    "test_alt_b_round": 58,
+    "test_archives": 24,
+    "test_boundaries": 2,
+    "test_cli": 12,
+    "test_collector": 53,
+    "test_collector_deployment": 4,
+    "test_config": 11,
+    "test_contracts": 3,
+    "test_data_safety": 11,
+    "test_decimal": 11,
+    "test_dynamic_funding": 39,
+    "test_dynamic_funding_replay": 12,
+    "test_execution_policy": 68,
+    "test_financial_ledger": 49,
+    "test_financial_performance": 75,
+    "test_financial_replay": 27,
+    "test_funding_session_delivery": 20,
+    "test_historical_benchmark": 2,
+    "test_historical_fast_query": 87,
+    "test_historical_fast_query_scale": 9,
+    "test_historical_funding": 79,
+    "test_historical_mark_price": 90,
+    "test_historical_modeled_execution": 98,
+    "test_historical_registry": 81,
+    "test_historical_registry_benchmark": 6,
+    "test_historical_replay_adapter": 59,
+    "test_historical_validation": 78,
+    "test_http": 34,
+    "test_identity": 117,
+    "test_integration": 1,
+    "test_intent_timing": 6,
+    "test_isolated_margin_risk": 86,
+    "test_margin_risk_replay": 30,
+    "test_mark_session_delivery": 22,
+    "test_market_lifecycle": 22,
+    "test_market_signal": 42,
+    "test_modeled_quotes": 38,
+    "test_models": 2,
+    "test_normalization": 43,
+    "test_orchestration": 98,
+    "test_order_cancel_requests": 9,
+    "test_orders": 59,
+    "test_performance_replay": 33,
+    "test_quote": 24,
+    "test_reserve_transfer_replay": 22,
+    "test_reserve_transfer_simulation": 39,
+    "test_runner": 52,
+    "test_simulated_execution": 60,
+    "test_simulated_replay": 24,
+    "test_snapshots": 39,
+    "test_storage": 20,
+    "test_strategy_result": 19,
+    "test_strategy_state": 12,
+    "test_sync": 16,
+    "test_time": 3,
+    "test_values": 45
+  },
+  "dynamic_specific": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "51",
+    "time": "51.909",
+    "timestamp": "2026-10-21T13:56:17.009285+00:00",
+    "hostname": "81bf609b326c"
+  },
+  "checks": {
+    "ruff_format": "PASS - 206 Python files",
+    "ruff_check": "PASS",
+    "mypy_strict_src_tests": "PASS - 206 source files",
+    "git_diff_check": "PASS"
+  },
+  "docker": {
+    "status": "PASSED",
+    "tests": 2807,
+    "seconds": 2062.18,
+    "image_id": "sha256:654de602957ea710db9f76ee67d6de352d36097534e149235da0feb9eb7feccf",
+    "network": "none",
+    "readonly": true,
+    "python": "3.12.15",
+    "pytest": "8.4.2",
+    "host_tests": 2807,
+    "host_seconds": 1770.05
+  },
+  "logs": {
+    "before": {
+      "sha256": "e915bab5c97ecddbd35251a3658799dadf90957b06cdf033a31405745de52cdb",
+      "bytes": 262
+    },
+    "dynamic-final": {
+      "sha256": "d7ce3f559a5ddcc407983763db3987ab0cf2f12b876181c26ba6bca5cbee9503",
+      "bytes": 181
+    },
+    "full-host-final": {
+      "sha256": "38659390688d2c563dbd089dc88505262d41944dd59895290d3a8abec6fcaf7e",
+      "bytes": 3237
+    },
+    "static-docker-final": {
+      "sha256": "1e1af8ca78a905815eaabe53e399d884a1615fef738a253803e7cb3b77225c90",
+      "bytes": 92
+    },
+    "full-docker-final": {
+      "sha256": "46f77b6b14ad289d8c0121784568f3dbf2eae2db65b502791ab34f2d2ed8ce4b",
+      "bytes": 3154
+    }
+  },
+  "classification": "READY_FOR_INDEPENDENT_AUDIT"
+}

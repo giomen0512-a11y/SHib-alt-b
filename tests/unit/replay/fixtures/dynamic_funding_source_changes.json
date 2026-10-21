@@ -1,0 +1,27 @@
+{
+  "base": "cb8c13e21a8ac5f396209d6626279d6c1113b9cf",
+  "approved_source_changes": {
+    "src/trading_engine/replay/runner.py": {
+      "historical_sha256": "ea36cb1fbeef18a52b4890a0b950acac29030cffc0b7a2b7cc7d6fdf464f7c99",
+      "current_sha256": "7fec65f5f0bcd802eda6e5d08bc991abfebcf6d6a4df41a505608dd2b7251c1d",
+      "archive": "frozen_sources/runner_cb8c13e.py.txt",
+      "reason": "Opt-in dynamic funding; optional state omitted when OFF; original financial formulas unchanged",
+      "equivalence_tests": [
+        "test_prior_ledger_enabled_fingerprint_frozen_from_approved_main",
+        "test_noquotes_extended_accounting_has_no_execution_and_requires_opt_in",
+        "test_v_ac_continuous_fragmented_and_restored_use_generated_fills"
+      ]
+    },
+    "src/trading_engine/replay/models.py": {
+      "historical_sha256": "696399ef0f98f2fd7d3ebbdfa75cf1a4bedb09deff5a5811aeee61e2d2543dbb",
+      "current_sha256": "52aa01e99a32061755ca8a856a46f07f6efe05c0f9ee2e3ec94a6e7f5a553acb",
+      "archive": "frozen_sources/models_cb8c13e.py.txt",
+      "reason": "Opt-in dynamic funding; optional state omitted when OFF; original financial formulas unchanged",
+      "equivalence_tests": [
+        "test_prior_ledger_enabled_fingerprint_frozen_from_approved_main",
+        "test_noquotes_extended_accounting_has_no_execution_and_requires_opt_in",
+        "test_v_ac_continuous_fragmented_and_restored_use_generated_fills"
+      ]
+    }
+  }
+}

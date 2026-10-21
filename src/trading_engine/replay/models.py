@@ -11,6 +11,7 @@ from trading_engine.models.orders import OrderCancelRequest, OrderIntent
 from trading_engine.models.signals import Signal
 from trading_engine.orchestration.models import CoordinatorState
 from trading_engine.replay.clock import SimulatedClock
+from trading_engine.replay.dynamic_funding.models import FundingReport, FundingState
 from trading_engine.replay.encoding import canonical, encoded
 from trading_engine.replay.financial_ledger.models import LedgerReport, LedgerState
 from trading_engine.replay.financial_performance.evidence import FinancialEvent
@@ -115,13 +116,22 @@ class ReplaySnapshot:
     reserve_identity: str | None = field(default=None, metadata={"omit_if_none": True})
     reserve: ReserveState | None = field(default=None, metadata={"omit_if_none": True})
     mark_history_session: object | None = field(default=None, metadata={"omit_if_none": True})
+    funding_identity: str | None = field(default=None, metadata={"omit_if_none": True})
+    funding_session: object | None = field(default=None, metadata={"omit_if_none": True})
+    funding: FundingState | None = field(default=None, metadata={"omit_if_none": True})
 
     def calculate_integrity(self) -> str:
         """Checksum en memoria para detectar pérdida accidental de cualquier campo."""
         payload = tuple(
             (field.name, getattr(self, field.name))
             for field in fields(self)
-            if field.name not in {"history_session", "mark_history_session", "integrity_digest"}
+            if field.name
+            not in {
+                "history_session",
+                "mark_history_session",
+                "funding_session",
+                "integrity_digest",
+            }
             and not (field.metadata.get("omit_if_none") and getattr(self, field.name) is None)
         )
         return sha256(encoded(payload)).hexdigest()
@@ -163,6 +173,7 @@ class ReplayReport:
     reserve_transfer_simulation: ReserveReport | None = field(
         default=None, metadata={"omit_if_none": True}
     )
+    dynamic_funding: FundingReport | None = field(default=None, metadata={"omit_if_none": True})
 
     def as_dict(self) -> dict[str, object]:
         result = canonical(self)
