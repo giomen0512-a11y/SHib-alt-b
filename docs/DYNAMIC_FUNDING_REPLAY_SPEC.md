@@ -84,6 +84,36 @@ Hay dos clases de evidencia de finalización:
    El cursor de minutos, la identidad del simulador y la cola de entregas son parte
    de la justificación. El mero hecho de que clock >= T no es una prueba.
 
+Selección entre manifiestos fixture (AUD-5D4B-001): para cada tasa pendiente en el
+instante causal actual se examinan todos los manifiestos recibidos con through >= T.
+Cada uno debe corresponder a la FactSource vinculada. Se contrasta su conjunto
+completo de FillIds con el ledger confirmado hasta su propia frontera inclusiva.
+IDs declarados todavía ausentes dejan ese candidato incompleto; IDs confirmados
+no declarados constituyen una contradicción y abortan la propuesta, aunque otro
+candidato esté completo. También siguen rechazándose los manifiestos mutuamente
+contradictorios al recibirse. Un candidato incompleto no oculta otro completo.
+Cada fill nuevo se contrasta también con todos los manifiestos ya recibidos,
+incluidos los incompletos o no elegidos: una contradicción posterior no se oculta
+por haber finalizado T mediante otra frontera. Se aborta antes de confirmar el fill
+y se conserva el snapshot anterior al tick.
+
+Después de validar todos los candidatos, se elige el completo con menor clave
+lexicográfica (received_at, through, identity). identity es el digest estable del
+manifiesto; no decide prioridad entre fills. La recepción más temprana conserva la
+elección anterior cuando no hay empate y ese primer candidato ya estaba completo.
+Los empates se resuelven por frontera y después identidad, sin depender del orden
+de una colección. No se usa un manifiesto cuya recepción sea posterior al reloj,
+ni se finaliza por reloj. Sin candidato completo se conserva PENDING_EXPOSURE.
+Se comprueba confianza tras el contraste y antes de entregar la prueba construida.
+
+La elección no revisa decisiones ya finalizadas ni sus IDs. Una decisión pendiente
+que antes quedaba bloqueada indebidamente puede ahora producir su primer pago.
+Empates que antes dependían del orden incidental adquieren la regla explícita
+anterior. Cambiar el contenido u orden de una fuente cambia su binding original;
+la regla de selección no promete igualar todos los IDs entre fuentes diferentes.
+ReplayRunner mantiene los mismos instantes internos de agenda entre ejecución
+continua, fragmentada y restaurada; los cortes externos no crean publicaciones.
+
 Sin ninguna prueba válida, permanece PENDING_EXPOSURE y no hay FundingEvidence.
 La finalización también protege NO_EXPOSURE: cualquier FillId nuevo que contradiga
 una frontera ya finalizada se detecta antes de confirmar su transición. Se interrumpe

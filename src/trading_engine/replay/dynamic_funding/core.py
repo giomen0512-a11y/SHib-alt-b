@@ -204,6 +204,9 @@ class DynamicFunding:
             and fill.timestamp <= d.finalization.through
             and fill.fill_id not in d.finalization.fill_ids
             for d in state.journal
+        ) or any(
+            fill.timestamp <= declaration.through and fill.fill_id not in declaration.fill_ids
+            for declaration in state.finalities
         ):
             raise FundingConflict("DYNAMIC_FUNDING_LATE_FILL_CONTRADICTS_FINALITY")
 
@@ -247,24 +250,31 @@ class DynamicFunding:
                 "SIMULATOR_GENERATION_AND_DELIVERY_BOUND",
             )
         else:
-            candidates = [e for e in state.finalities if e.through >= at]
-            if not candidates:
-                return None
-            declaration = candidates[0]
-            actual = tuple(
-                sorted(
-                    (
-                        e.fill_id
-                        for e in context.ledger.entries
-                        if e.executed_at <= declaration.through
-                    ),
-                    key=lambda i: i.int,
+            complete = []
+            for declaration in state.finalities:
+                if declaration.through < at or declaration.received_at > context.at:
+                    continue
+                if declaration.fact_identity != context.fact_identity:
+                    raise FundingConflict("DYNAMIC_FINALITY_SOURCE_BINDING_INVALID")
+                actual = tuple(
+                    sorted(
+                        (
+                            e.fill_id
+                            for e in context.ledger.entries
+                            if e.executed_at <= declaration.through
+                        ),
+                        key=lambda i: i.int,
+                    )
                 )
-            )
-            if set(actual) - set(declaration.fill_ids):
-                raise FundingConflict("DYNAMIC_FINALITY_HAS_UNDECLARED_FILLS")
-            if actual != declaration.fill_ids:
+                if set(actual) - set(declaration.fill_ids):
+                    raise FundingConflict("DYNAMIC_FINALITY_HAS_UNDECLARED_FILLS")
+                if actual == declaration.fill_ids:
+                    complete.append(declaration)
+            self.check()
+            if not complete:
                 return None
+            # Validate every candidate before choosing; receipt preserves prior non-tied choices.
+            declaration = min(complete, key=lambda e: (e.received_at, e.through, e.identity))
             received = max(
                 (declaration.received_at,)
                 + tuple(
@@ -277,7 +287,7 @@ class DynamicFunding:
                 declaration.identity,
                 declaration.through,
                 received,
-                actual,
+                declaration.fill_ids,
                 declaration.fact_identity,
                 "DECLARED_CLOSED_FIXTURE_EXECUTIONS",
             )
